@@ -1,15 +1,16 @@
 # Backend (Python)
-backend/.venv/
 backend/venv/
 backend/__pycache__/
-backend/*.pyc
-backend/*.pyo
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/**/*.pyo
 backend/*.egg-info/
 backend/.pytest_cache/
 backend/.env
 backend/.env.local
 backend/dist/
 backend/build/
+backend/expense_tracker.db
 
 # Frontend (React Native/Expo)
 frontend/node_modules/
