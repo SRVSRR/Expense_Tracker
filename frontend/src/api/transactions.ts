@@ -10,7 +10,7 @@ export interface Transaction {
   description: string;
   merchant?: string;
   date: string;
-  is_recurring: boolean;
+  is_recurring: number;
   created_at: string;
 }
 
@@ -22,7 +22,7 @@ export interface CreateTransactionPayload {
   description: string;
   merchant?: string;
   date: string;
-  is_recurring?: boolean;
+  is_recurring?: number;
 }
 
 export interface TransactionFilters {

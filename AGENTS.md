@@ -126,6 +126,7 @@ the visual design.
         categories.py             CRUD /categories
         forecast.py               GET /forecast/cashflow, /runway, /anomalies
         budget.py                 GET /budget/recommendations, /category-analysis
+        recurring.py              CRUD /recurring + GET /recurring/upcoming
       /services                   (empty — logic is in routes for now)
       /utils
         __init__.py               JWT creation, password hashing, get_current_user dependency
@@ -145,11 +146,13 @@ the visual design.
         categories.ts             getAll, create
         forecast.ts               cashflow, runway, anomalies
         budget.ts                 recommendations, category-analysis
+        recurring.ts              CRUD recurring rules + upcoming
       /store
         authStore.ts              Token persistence, login/logout/register
         accountStore.ts           Accounts state
         transactionStore.ts       Transactions + filters state
         categoryStore.ts          Categories state
+        recurringStore.ts         Recurring rules + upcoming state
       /navigation
         AppNavigator.tsx          Auth stack ↔ Bottom tabs
       /screens
@@ -168,6 +171,7 @@ the visual design.
         TransactionCard.tsx
         AccountCard.tsx
         BalanceSummary.tsx
+        UpcomingCard.tsx          Upcoming recurring transaction card
       /theme
         colors.ts               Color palette constants (Colors.*)
   AGENTS.md
@@ -215,17 +219,18 @@ Not done yet:
 Definition of done: ✅ A user can sign up, create an account, add income and
 expense transactions, and see a running balance.
 
-### Phase 2: Recurring transactions (manual) — PARTIALLY DONE
+### Phase 2: Recurring transactions (manual) ✅ DONE
 
 Completed:
 - Add-transaction form has a "recurring" checkbox toggle.
+- Frequency selector (weekly, bi-weekly, monthly, quarterly, yearly).
+- Next-date input for expected recurrence date.
+- Backend CRUD for `recurring_rules`: POST /, GET /, GET /upcoming, DELETE /{id}.
+- Upcoming transactions auto-generated from rules with occurrence expansion.
+- Dashboard shows upcoming recurring transactions with date badges.
+- Recurring rule created automatically when transaction is marked recurring.
 
-Not done:
-- Frequency/expected-date capture UI fields.
-- Writing to `recurring_rules` table from the frontend.
-- Upcoming-transactions view.
-
-Definition of done: NOT YET — needs recurring_rules write + upcoming view.
+Definition of done: ✅
 
 ### Phase 3: Naive forecasting ✅ DONE
 
@@ -308,13 +313,12 @@ Deferred until Phases 1–9 are stable with real user data.
 ## What to do next (priority order)
 
 1. **Phase 4: Rule-based categorization** — Add keyword matching for auto-categorizing transactions on creation.
-2. **Phase 2 completion: Recurring transactions** — Add frequency/date UI, write to `recurring_rules`, build upcoming-transactions view.
-3. **Default category seeding** — Seed common categories on user signup.
-4. **Offline mobile cache** — expo-sqlite integration for offline transaction entry.
-5. **Phase 5: ML categorization** — Once Phase 4 has correction data, train LightGBM classifier.
-6. **Alembic migrations** — Replace `create_all` with proper migration workflow.
-7. **Prediction caching** — Write scheduled predictions to `predictions` table.
-8. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
+2. **Default category seeding** — Seed common categories on user signup.
+3. **Offline mobile cache** — expo-sqlite integration for offline transaction entry.
+4. **Phase 5: ML categorization** — Once Phase 4 has correction data, train LightGBM classifier.
+5. **Alembic migrations** — Replace `create_all` with proper migration workflow.
+6. **Prediction caching** — Write scheduled predictions to `predictions` table.
+7. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
 
 ## Conventions the agent must follow throughout
 

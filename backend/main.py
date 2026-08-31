@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from app.routes import transactions, accounts, categories, forecast, budget, auth
+from app.routes import transactions, accounts, categories, forecast, budget, auth, recurring
 from app.db.database import init_db
 
 
@@ -42,6 +42,7 @@ app.include_router(transactions.router, prefix="/api/transactions", tags=["trans
 app.include_router(categories.router, prefix="/api/categories", tags=["categories"])
 app.include_router(forecast.router, prefix="/api/forecast", tags=["forecast"])
 app.include_router(budget.router, prefix="/api/budget", tags=["budget"])
+app.include_router(recurring.router, prefix="/api/recurring", tags=["recurring"])
 
 
 @app.get("/")

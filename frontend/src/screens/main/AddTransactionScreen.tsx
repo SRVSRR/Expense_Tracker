@@ -17,8 +17,17 @@ import { Colors } from '../../theme/colors';
 import { useTransactionStore } from '../../store/transactionStore';
 import { useAccountStore } from '../../store/accountStore';
 import { useCategoryStore } from '../../store/categoryStore';
+import { useRecurringStore } from '../../store/recurringStore';
 
 const TAB_BAR_HEIGHT = 52;
+
+const FREQUENCIES = [
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'biweekly', label: 'Bi-weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'yearly', label: 'Yearly' },
+];
 
 export default function AddTransactionScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -30,21 +39,30 @@ export default function AddTransactionScreen({ navigation }: any) {
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [isRecurring, setIsRecurring] = useState(false);
+  const [frequency, setFrequency] = useState('monthly');
+  const [nextDate, setNextDate] = useState('');
   const [categoryMenuVisible, setCategoryMenuVisible] = useState(false);
   const [accountMenuVisible, setAccountMenuVisible] = useState(false);
+  const [frequencyMenuVisible, setFrequencyMenuVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const { createTransaction } = useTransactionStore();
   const { accounts, fetchAccounts } = useAccountStore();
   const { categories, fetchCategories, getCategoriesByType } = useCategoryStore();
+  const { createRule } = useRecurringStore();
 
   useEffect(() => {
     fetchAccounts();
     fetchCategories();
+    // Default next date to one period from now
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    setNextDate(d.toISOString().split('T')[0]);
   }, []);
 
   const filteredCategories = getCategoriesByType(type);
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
+  const selectedFreqLabel = FREQUENCIES.find((f) => f.value === frequency)?.label || 'Monthly';
 
   const handleSubmit = async () => {
     if (!amount || !description || !selectedCategory || !selectedAccountId) {
@@ -54,7 +72,7 @@ export default function AddTransactionScreen({ navigation }: any) {
 
     setIsLoading(true);
     try {
-      await createTransaction({
+      const transaction = await createTransaction({
         account_id: selectedAccountId,
         type,
         amount: parseFloat(amount),
@@ -62,8 +80,35 @@ export default function AddTransactionScreen({ navigation }: any) {
         description,
         merchant: merchant || undefined,
         date,
-        is_recurring: isRecurring,
+        is_recurring: isRecurring ? 1 : 0,
       });
+
+      // If recurring, create the recurring rule
+      if (isRecurring && nextDate) {
+        const patternMap: Record<string, string> = {
+          weekly: 'weekly',
+          biweekly: 'weekly',
+          monthly: 'monthly',
+          quarterly: 'monthly',
+          yearly: 'yearly',
+        };
+        const freqMap: Record<string, number> = {
+          weekly: 1,
+          biweekly: 2,
+          monthly: 1,
+          quarterly: 3,
+          yearly: 1,
+        };
+
+        await createRule({
+          transaction_id: transaction.id,
+          pattern: patternMap[frequency] || 'monthly',
+          frequency: freqMap[frequency] || 1,
+          expected_amount: parseFloat(amount),
+          expected_date: new Date(nextDate).toISOString(),
+        });
+      }
+
       Alert.alert('Success', 'Transaction added!', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
@@ -230,7 +275,7 @@ export default function AddTransactionScreen({ navigation }: any) {
         </Menu>
       </Surface>
 
-      {/* Options */}
+      {/* Recurring */}
       <Surface style={styles.card} elevation={0}>
         <TouchableRipple
           onPress={() => setIsRecurring(!isRecurring)}
@@ -251,10 +296,64 @@ export default function AddTransactionScreen({ navigation }: any) {
             <Checkbox
               status={isRecurring ? 'checked' : 'unchecked'}
               onPress={() => setIsRecurring(!isRecurring)}
-              color={Colors.primary}
+              color={Colors.tertiary}
             />
           </View>
         </TouchableRipple>
+
+        {isRecurring && (
+          <>
+            <Divider style={[styles.divider, { marginTop: 8 }]} />
+            <Text variant="bodySmall" style={styles.sectionLabel}>
+              RECURRENCE SETTINGS
+            </Text>
+
+            <Text variant="bodyMedium" style={styles.fieldLabel}>
+              Frequency
+            </Text>
+            <Menu
+              visible={frequencyMenuVisible}
+              onDismiss={() => setFrequencyMenuVisible(false)}
+              anchor={
+                <TouchableOpacity
+                  onPress={() => setFrequencyMenuVisible(true)}
+                  style={styles.selector}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.selectorContent}>
+                    <View style={styles.selectorLeft}>
+                      <Icon source="repeat" size={18} color={Colors.tertiary} />
+                      <Text variant="bodyMedium" style={styles.selectorText}>
+                        {selectedFreqLabel}
+                      </Text>
+                    </View>
+                    <Icon source="chevron-down" size={14} color={Colors.textTertiary} />
+                  </View>
+                </TouchableOpacity>
+              }
+            >
+              {FREQUENCIES.map((freq) => (
+                <Menu.Item
+                  key={freq.value}
+                  onPress={() => {
+                    setFrequency(freq.value);
+                    setFrequencyMenuVisible(false);
+                  }}
+                  title={freq.label}
+                />
+              ))}
+            </Menu>
+
+            <TextInput
+              label="Next Date"
+              value={nextDate}
+              onChangeText={setNextDate}
+              mode="outlined"
+              placeholder="YYYY-MM-DD"
+              style={[styles.input, { marginTop: 12 }]}
+            />
+          </>
+        )}
       </Surface>
 
       {/* Submit */}

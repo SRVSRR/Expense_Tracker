@@ -7,8 +7,10 @@ import { Colors } from '../../theme/colors';
 import { useAuthStore } from '../../store/authStore';
 import { useAccountStore } from '../../store/accountStore';
 import { useTransactionStore } from '../../store/transactionStore';
+import { useRecurringStore } from '../../store/recurringStore';
 import BalanceSummary from '../../components/BalanceSummary';
 import TransactionCard from '../../components/TransactionCard';
+import UpcomingCard from '../../components/UpcomingCard';
 import { forecastApi, RunwayData } from '../../api/forecast';
 
 const TAB_BAR_HEIGHT = 52;
@@ -18,11 +20,12 @@ export default function DashboardScreen({ navigation }: any) {
   const user = useAuthStore((state) => state.user);
   const { accounts, fetchAccounts } = useAccountStore();
   const { transactions, fetchTransactions } = useTransactionStore();
+  const { upcoming, fetchUpcoming } = useRecurringStore();
   const [runway, setRunway] = useState<RunwayData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = async () => {
-    await Promise.all([fetchAccounts(), fetchTransactions({ limit: 50 })]);
+    await Promise.all([fetchAccounts(), fetchTransactions({ limit: 50 }), fetchUpcoming(30)]);
     try {
       const runwayData = await forecastApi.getRunway();
       setRunway(runwayData);
@@ -197,6 +200,25 @@ export default function DashboardScreen({ navigation }: any) {
           )}
         </View>
 
+        {/* Upcoming Recurring */}
+        {upcoming.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                Upcoming
+              </Text>
+              <View style={styles.upcomingBadge}>
+                <Text variant="bodySmall" style={styles.upcomingBadgeText}>
+                  {upcoming.length}
+                </Text>
+              </View>
+            </View>
+            {upcoming.slice(0, 4).map((u) => (
+              <UpcomingCard key={u.id} transaction={u} />
+            ))}
+          </View>
+        )}
+
         <View style={{ height: TAB_BAR_HEIGHT + 24 }} />
       </ScrollView>
 
@@ -332,6 +354,17 @@ const styles = StyleSheet.create({
   seeAll: {
     color: Colors.tertiary,
     fontWeight: '600',
+  },
+  upcomingBadge: {
+    backgroundColor: Colors.tertiarySurface,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  upcomingBadgeText: {
+    color: Colors.tertiary,
+    fontWeight: '700',
+    fontSize: 11,
   },
   emptyCard: {
     marginHorizontal: 16,
