@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
   seeAll: {
-    color: Colors.primary,
+    color: Colors.tertiary,
     fontWeight: '600',
   },
   emptyCard: {
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,
-    backgroundColor: Colors.primary,
+    backgroundColor: '#fff',
     borderRadius: 16,
     elevation: 4,
   },

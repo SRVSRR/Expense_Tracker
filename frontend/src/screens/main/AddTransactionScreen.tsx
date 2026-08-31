@@ -265,7 +265,7 @@ export default function AddTransactionScreen({ navigation }: any) {
           loading={isLoading}
           disabled={isLoading}
           style={styles.submitButton}
-          buttonColor={Colors.primary}
+          buttonColor="#fff"
           contentStyle={{ paddingVertical: 6 }}
         >
           Add Transaction

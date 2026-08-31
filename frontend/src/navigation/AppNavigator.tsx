@@ -48,7 +48,7 @@ const MainTabs = () => (
         const icons = iconMap[route.name] || { focused: 'home', unfocused: 'home-outline' };
         return <Icon source={focused ? icons.focused : icons.unfocused} size={20} color={color} />;
       },
-      tabBarActiveTintColor: Colors.primary,
+      tabBarActiveTintColor: Colors.textPrimary,
       tabBarInactiveTintColor: Colors.textTertiary,
       tabBarStyle: styles.tabBar,
       tabBarLabelStyle: styles.tabLabel,

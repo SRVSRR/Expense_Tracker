@@ -169,7 +169,7 @@ export default function AccountsScreen() {
             <Button onPress={() => setDialogVisible(false)} textColor={Colors.textSecondary}>
               Cancel
             </Button>
-            <Button onPress={handleAdd} buttonColor={Colors.primary} textColor="#fff">
+            <Button onPress={handleAdd} buttonColor="#fff" textColor={Colors.textPrimary}>
               Create
             </Button>
           </Dialog.Actions>
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 16,
-    backgroundColor: Colors.primary,
+    backgroundColor: '#fff',
     borderRadius: 14,
   },
   dialog: {
