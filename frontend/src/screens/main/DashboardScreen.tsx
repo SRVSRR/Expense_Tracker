@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, Fragment } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
-import { Text, Surface } from 'react-native-paper';
+import { Text, Surface, FAB } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
 import { useAuthStore } from '../../store/authStore';
@@ -10,7 +10,7 @@ import BalanceSummary from '../../components/BalanceSummary';
 import TransactionCard from '../../components/TransactionCard';
 import { forecastApi, RunwayData } from '../../api/forecast';
 
-const TAB_BAR_HEIGHT = 56;
+const TAB_BAR_HEIGHT = 52;
 
 export default function DashboardScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -57,6 +57,7 @@ export default function DashboardScreen({ navigation }: any) {
   })();
 
   return (
+    <>
     <ScrollView
       style={styles.container}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
@@ -195,8 +196,16 @@ export default function DashboardScreen({ navigation }: any) {
         )}
       </View>
 
-      <View style={{ height: TAB_BAR_HEIGHT + 16 }} />
+      <View style={{ height: TAB_BAR_HEIGHT + 24 }} />
     </ScrollView>
+
+    <FAB
+      icon="plus-circle"
+      style={[styles.fab, { bottom: insets.bottom + TAB_BAR_HEIGHT + 16 }]}
+      onPress={() => navigation.navigate('AddTransaction')}
+      color="#fff"
+    />
+    </>
   );
 }
 
@@ -339,5 +348,12 @@ const styles = StyleSheet.create({
   emptyHint: {
     color: '#CCC',
     marginTop: 4,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    backgroundColor: '#2196F3',
+    borderRadius: 16,
+    elevation: 4,
   },
 });

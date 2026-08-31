@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
 import { forecastApi, CashflowForecast, RunwayData, Anomaly } from '../../api/forecast';
 
-const TAB_BAR_HEIGHT = 56;
+const TAB_BAR_HEIGHT = 52;
 
 export default function ForecastScreen() {
   const insets = useSafeAreaInsets();

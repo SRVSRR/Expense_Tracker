@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
 import { budgetApi, BudgetRecommendation, CategoryAnalysis } from '../../api/budget';
 
-const TAB_BAR_HEIGHT = 56;
+const TAB_BAR_HEIGHT = 52;
 
 const trendIcons: Record<string, string> = {
   increasing: '\u2191',

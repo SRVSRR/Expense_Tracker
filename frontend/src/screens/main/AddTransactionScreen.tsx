@@ -17,7 +17,7 @@ import { useTransactionStore } from '../../store/transactionStore';
 import { useAccountStore } from '../../store/accountStore';
 import { useCategoryStore } from '../../store/categoryStore';
 
-const TAB_BAR_HEIGHT = 56;
+const TAB_BAR_HEIGHT = 52;
 
 export default function AddTransactionScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();

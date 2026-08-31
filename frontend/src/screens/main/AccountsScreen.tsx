@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
 import { useAccountStore } from '../../store/accountStore';
 
-const TAB_BAR_HEIGHT = 56;
+const TAB_BAR_HEIGHT = 52;
 
 export default function AccountsScreen() {
   const insets = useSafeAreaInsets();

@@ -6,7 +6,7 @@ import Icon from '../../components/Icon';
 import { useTransactionStore } from '../../store/transactionStore';
 import TransactionCard from '../../components/TransactionCard';
 
-const TAB_BAR_HEIGHT = 56;
+const TAB_BAR_HEIGHT = 52;
 
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();

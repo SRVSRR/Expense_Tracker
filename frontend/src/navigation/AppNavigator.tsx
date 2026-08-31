@@ -34,7 +34,6 @@ const AuthStack = () => (
 const iconMap: Record<string, { focused: string; unfocused: string }> = {
   Home: { focused: 'home', unfocused: 'home-outline' },
   Transactions: { focused: 'format-list-bulleted', unfocused: 'format-list-bulleted' },
-  AddTxn: { focused: 'plus-circle', unfocused: 'plus-circle-outline' },
   Accounts: { focused: 'wallet', unfocused: 'wallet-outline' },
   Forecast: { focused: 'trending-up', unfocused: 'trending-up' },
   Budget: { focused: 'chart-pie', unfocused: 'chart-pie' },
@@ -46,14 +45,7 @@ const MainTabs = () => (
       headerShown: false,
       tabBarIcon: ({ focused, color, size }) => {
         const icons = iconMap[route.name] || { focused: 'home', unfocused: 'home-outline' };
-        if (route.name === 'AddTxn') {
-          return (
-            <View style={styles.addIconContainer}>
-              <Icon source={focused ? icons.focused : icons.unfocused} size={24} color="#fff" />
-            </View>
-          );
-        }
-        return <Icon source={focused ? icons.focused : icons.unfocused} size={size} color={color} />;
+        return <Icon source={focused ? icons.focused : icons.unfocused} size={20} color={color} />;
       },
       tabBarActiveTintColor: '#2196F3',
       tabBarInactiveTintColor: '#999',
@@ -62,20 +54,15 @@ const MainTabs = () => (
       tabBarHideOnKeyboard: true,
     })}
   >
-    <Tab.Screen name="Home" component={DashboardScreen} options={{ tabBarLabel: 'Home' }} />
+    <Tab.Screen name="Home" component={DashboardScreen} />
     <Tab.Screen name="Transactions" component={TransactionsScreen} />
-    <Tab.Screen
-      name="AddTxn"
-      component={AddTransactionScreen}
-      options={{ tabBarLabel: 'Add' }}
-    />
     <Tab.Screen name="Accounts" component={AccountsScreen} />
     <Tab.Screen name="Forecast" component={ForecastScreen} />
     <Tab.Screen name="Budget" component={BudgetScreen} />
   </Tab.Navigator>
 );
 
-export default function AppNavigator() {
+const RootStack = () => {
   const { isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
@@ -87,8 +74,27 @@ export default function AppNavigator() {
   }
 
   return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {isAuthenticated ? (
+        <>
+          <Stack.Screen name="MainTabs" component={MainTabs} />
+          <Stack.Screen
+            name="AddTransaction"
+            component={AddTransactionScreen}
+            options={{ presentation: 'modal' }}
+          />
+        </>
+      ) : (
+        <Stack.Screen name="Auth" component={AuthStack} />
+      )}
+    </Stack.Navigator>
+  );
+};
+
+export default function AppNavigator() {
+  return (
     <NavigationContainer>
-      {isAuthenticated ? <MainTabs /> : <AuthStack />}
+      <RootStack />
     </NavigationContainer>
   );
 }
@@ -98,9 +104,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderTopColor: '#E8E8E8',
     borderTopWidth: 0.5,
-    paddingBottom: 6,
-    paddingTop: 6,
-    height: 58,
+    paddingBottom: 4,
+    paddingTop: 4,
+    height: 52,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -108,24 +114,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '600' as const,
-    flexShrink: 0,
-    marginTop: -2,
-  },
-  addIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#2196F3',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    elevation: 4,
-    shadowColor: '#2196F3',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    marginTop: -1,
   },
   loading: {
     flex: 1,
