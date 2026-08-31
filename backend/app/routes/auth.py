@@ -13,6 +13,7 @@ from app.utils import (
     create_access_token,
     get_current_user,
 )
+from app.services.seed import seed_categories
 
 router = APIRouter()
 
@@ -34,6 +35,10 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    # Seed default categories for the new user
+    await seed_categories(user.id, db)
+
     return user
 
 

@@ -130,6 +130,7 @@ the visual design.
         categorize.py             POST /categorize/suggest, /categorize/corrections
       /services
         categorize.py             Keyword-to-category mapping + suggest function
+        seed.py                   Default category seeding on signup
       /utils
         __init__.py               JWT creation, password hashing, get_current_user dependency
     /migrations                   (empty — using create_all, not Alembic yet)
@@ -216,7 +217,7 @@ Completed:
 7. Zustand stores for auth, accounts, transactions, categories.
 
 Not done yet:
-- Default category seeding on signup (deferred — not critical).
+- Default category seeding on signup ✅ DONE.
 - Offline SQLite cache for mobile (deferred — requires expo-sqlite integration).
 
 Definition of done: ✅ A user can sign up, create an account, add income and
@@ -315,12 +316,11 @@ Deferred until Phases 1–9 are stable with real user data.
 
 ## What to do next (priority order)
 
-1. **Default category seeding** — Seed common categories on user signup.
-2. **Offline mobile cache** — expo-sqlite integration for offline transaction entry.
-3. **Phase 5: ML categorization** — Train LightGBM classifier on correction data from Phase 4.
-4. **Alembic migrations** — Replace `create_all` with proper migration workflow.
-5. **Prediction caching** — Write scheduled predictions to `predictions` table.
-6. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
+1. **Offline mobile cache** — expo-sqlite integration for offline transaction entry.
+2. **Phase 5: ML categorization** — Train LightGBM classifier on correction data from Phase 4.
+3. **Alembic migrations** — Replace `create_all` with proper migration workflow.
+4. **Prediction caching** — Write scheduled predictions to `predictions` table.
+5. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
 
 ## Conventions the agent must follow throughout
 
