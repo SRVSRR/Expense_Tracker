@@ -101,6 +101,7 @@ export default function LoginScreen({ navigation }: any) {
             disabled={isLoading}
             style={styles.button}
             buttonColor="#fff"
+            textColor="#000"
             contentStyle={{ paddingVertical: 6 }}
           >
             Login

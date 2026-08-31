@@ -52,6 +52,56 @@ rule-based logic — no LightGBM models trained yet.
 - **bcrypt pinned to <5**: `passlib` is removed; we use `bcrypt` directly. Version 4.x works; 5.x broke passlib.
 - **Android API URL**: Use `10.0.2.2:8000` (not `localhost`) — handled in `frontend/src/api/client.ts` via `Platform.select()`.
 
+## UI & Design Constraints
+
+**Read this before making ANY frontend changes.** Violating these will break
+the visual design.
+
+### Color palette (`frontend/src/theme/colors.ts`)
+
+| Token | Hex | Usage |
+|---|---|---|
+| `primary` | `#FF6D00` | **Headers only.** Never on buttons, FABs, or card backgrounds. |
+| `tertiary` | `#00BFA5` | Accent links ("See All"), secondary highlights, category icons. |
+| `background` | `#0D0D0D` | Screen backgrounds (near-black). |
+| `surface` | `#161616` | Tab bar background. |
+| `surfaceCard` | `#1A1A1A` | Card backgrounds. |
+| `surfaceElevated` | `#1E1E1E` | Elevated surfaces (input fields, empty states). |
+| `textPrimary` | `#FFFFFF` | Headings, amounts, primary text. |
+| `textSecondary` | `#A0A0A0` | Labels, descriptions. |
+| `textTertiary` | `#666666` | Hints, metadata, disabled text. |
+| `textDisabled` | `#444444` | Placeholder icons, very muted text. |
+| `border` | `#2A2A2A` | Card borders, dividers. |
+| `income` | `#66BB6A` | Income amounts, positive changes. |
+| `expense` | `#EF5350` | Expense amounts, negative changes, errors. |
+| `warning` | `#FFA726` | Anomaly warnings, high-percentage categories. |
+
+### Hard rules
+
+1. **Orange is header-only.** `Colors.primary` must NOT be used for
+   `buttonColor`, `backgroundColor` on interactive elements, or FAB fills.
+   The only valid use is header backgrounds and the BalanceSummary card.
+2. **White buttons get dark text.** When using `buttonColor="#fff"`, always
+   set `textColor="#000"` or the text will be invisible on the dark theme.
+3. **FAB icon color must contrast its background.** White FAB → dark icon.
+   Orange FAB (if ever used) → white icon.
+4. **No emoji in UI.** All icons use the custom `Icon` component with clean
+   geometric Unicode glyphs (e.g. `\u29D6`, `\u26A0`, `\u2193`). Never
+   use emoji characters (🕐, ⚠️, 📊, etc.) — they render inconsistently
+   across devices and look unprofessional.
+5. **Use `Colors.*` constants, never hardcoded hex in screens/components.**
+   The only exception is explicit `#fff`/`#000` for button text contrast.
+6. **Card backgrounds use `Colors.surfaceCard`.** Do not use `#fff` or
+   `Colors.background` for cards.
+7. **Semantic surfaces use 8% opacity.** Income/expense/warning card
+   backgrounds are `Colors.incomeSurface`, `Colors.expenseSurface`, etc.
+8. **Tab bar:** 5 tabs max. Active tint is white (`Colors.textPrimary`).
+   Height is 52px. Label font is 9px.
+9. **Headers:** Orange background, white text. Always use safe area insets
+   for top padding (`insets.top + 16`).
+10. **Bottom padding:** All scrollable screens must account for tab bar
+    height (52px) + margin in their `contentContainerStyle` or bottom spacer.
+
 ## Repository structure (actual)
 
 ```
@@ -118,6 +168,8 @@ rule-based logic — no LightGBM models trained yet.
         TransactionCard.tsx
         AccountCard.tsx
         BalanceSummary.tsx
+      /theme
+        colors.ts               Color palette constants (Colors.*)
   AGENTS.md
 ```
 

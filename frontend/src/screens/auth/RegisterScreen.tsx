@@ -115,6 +115,7 @@ export default function RegisterScreen({ navigation }: any) {
             disabled={isLoading}
             style={styles.button}
             buttonColor="#fff"
+            textColor="#000"
             contentStyle={{ paddingVertical: 6 }}
           >
             Create Account

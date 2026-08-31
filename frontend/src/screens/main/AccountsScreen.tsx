@@ -133,7 +133,7 @@ export default function AccountsScreen() {
         label="New Account"
         style={[styles.fab, { bottom: insets.bottom + TAB_BAR_HEIGHT + 16 }]}
         onPress={() => setDialogVisible(true)}
-        color="#fff"
+        color={Colors.background}
       />
 
       <Portal>
@@ -169,7 +169,7 @@ export default function AccountsScreen() {
             <Button onPress={() => setDialogVisible(false)} textColor={Colors.textSecondary}>
               Cancel
             </Button>
-            <Button onPress={handleAdd} buttonColor="#fff" textColor={Colors.textPrimary}>
+            <Button onPress={handleAdd} buttonColor="#fff" textColor="#000">
               Create
             </Button>
           </Dialog.Actions>

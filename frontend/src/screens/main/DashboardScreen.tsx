@@ -204,7 +204,7 @@ export default function DashboardScreen({ navigation }: any) {
         icon="plus-circle"
         style={[styles.fab, { bottom: insets.bottom + TAB_BAR_HEIGHT + 16 }]}
         onPress={() => navigation.navigate('AddTransaction')}
-        color="#fff"
+        color={Colors.background}
       />
     </>
   );
