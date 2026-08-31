@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuthStore } from '../store/authStore';
 import { ActivityIndicator } from 'react-native';
 import Icon from '../components/Icon';
+import { Colors } from '../theme/colors';
 
 import LoginScreen from '../screens/auth/LoginScreen';
 import RegisterScreen from '../screens/auth/RegisterScreen';
@@ -23,7 +24,7 @@ const AuthStack = () => (
   <Stack.Navigator
     screenOptions={{
       headerShown: false,
-      contentStyle: { backgroundColor: '#F5F5F5' },
+      contentStyle: { backgroundColor: Colors.background },
     }}
   >
     <Stack.Screen name="Login" component={LoginScreen} />
@@ -47,8 +48,8 @@ const MainTabs = () => (
         const icons = iconMap[route.name] || { focused: 'home', unfocused: 'home-outline' };
         return <Icon source={focused ? icons.focused : icons.unfocused} size={20} color={color} />;
       },
-      tabBarActiveTintColor: '#2196F3',
-      tabBarInactiveTintColor: '#999',
+      tabBarActiveTintColor: Colors.primary,
+      tabBarInactiveTintColor: Colors.textTertiary,
       tabBarStyle: styles.tabBar,
       tabBarLabelStyle: styles.tabLabel,
       tabBarHideOnKeyboard: true,
@@ -68,7 +69,7 @@ const RootStack = () => {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#2196F3" />
+        <ActivityIndicator size="large" color={Colors.primary} />
       </View>
     );
   }
@@ -101,8 +102,8 @@ export default function AppNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#fff',
-    borderTopColor: '#E8E8E8',
+    backgroundColor: Colors.surface,
+    borderTopColor: Colors.border,
     borderTopWidth: 0.5,
     paddingBottom: 4,
     paddingTop: 4,
@@ -110,7 +111,7 @@ const styles = StyleSheet.create({
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.3,
     shadowRadius: 8,
   },
   tabLabel: {
@@ -122,6 +123,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
 });

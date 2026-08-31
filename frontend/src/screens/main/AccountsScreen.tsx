@@ -3,6 +3,7 @@ import { View, StyleSheet, FlatList, RefreshControl, Alert, TouchableOpacity } f
 import { Text, FAB, Portal, Dialog, TextInput, Button, Surface } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
+import { Colors } from '../../theme/colors';
 import { useAccountStore } from '../../store/accountStore';
 
 const TAB_BAR_HEIGHT = 52;
@@ -73,9 +74,9 @@ export default function AccountsScreen() {
         onLongPress={() => handleDelete(item.id, item.name)}
         activeOpacity={0.7}
       >
-        <Surface style={styles.accountCard} elevation={1}>
+        <Surface style={styles.accountCard} elevation={0}>
           <View style={styles.accountIconBg}>
-            <Icon source="wallet" size={22} color="#2196F3" />
+            <Icon source="wallet" size={22} color={Colors.primary} />
           </View>
           <View style={styles.accountInfo}>
             <Text variant="bodyLarge" style={styles.accountName}>
@@ -110,12 +111,12 @@ export default function AccountsScreen() {
         data={accounts}
         keyExtractor={(item) => item.id}
         renderItem={renderAccount}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
         contentContainerStyle={[styles.list, { paddingBottom: TAB_BAR_HEIGHT + 80 }]}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBg}>
-              <Icon source="wallet" size={40} color="#CCC" />
+              <Icon source="wallet" size={40} color={Colors.textDisabled} />
             </View>
             <Text variant="bodyLarge" style={styles.emptyTitle}>
               No accounts yet
@@ -165,10 +166,10 @@ export default function AccountsScreen() {
             />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setDialogVisible(false)} textColor="#666">
+            <Button onPress={() => setDialogVisible(false)} textColor={Colors.textSecondary}>
               Cancel
             </Button>
-            <Button onPress={handleAdd} buttonColor="#2196F3" textColor="#fff">
+            <Button onPress={handleAdd} buttonColor={Colors.primary} textColor="#fff">
               Create
             </Button>
           </Dialog.Actions>
@@ -181,12 +182,12 @@ export default function AccountsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#2196F3',
+    backgroundColor: Colors.primary,
   },
   title: {
     color: '#fff',
@@ -206,13 +207,13 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surfaceCard,
   },
   accountIconBg: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: Colors.primarySurface,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -222,15 +223,15 @@ const styles = StyleSheet.create({
   },
   accountName: {
     fontWeight: '600',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   accountCurrency: {
-    color: '#999',
+    color: Colors.textTertiary,
     marginTop: 2,
   },
   accountBalance: {
     fontWeight: '700',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -241,32 +242,34 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: Colors.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   emptyTitle: {
-    color: '#666',
+    color: Colors.textSecondary,
     fontWeight: '600',
     marginBottom: 8,
   },
   emptyHint: {
-    color: '#999',
+    color: Colors.textTertiary,
     textAlign: 'center',
     lineHeight: 20,
   },
   fab: {
     position: 'absolute',
     right: 16,
-    backgroundColor: '#2196F3',
+    backgroundColor: Colors.primary,
     borderRadius: 14,
   },
   dialog: {
+    backgroundColor: Colors.surfaceCard,
     borderRadius: 16,
   },
   dialogTitle: {
     fontWeight: '700',
+    color: Colors.textPrimary,
   },
   dialogInput: {
     marginBottom: 12,

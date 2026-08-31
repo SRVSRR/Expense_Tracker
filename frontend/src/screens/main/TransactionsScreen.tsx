@@ -3,6 +3,7 @@ import { View, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { Text, SegmentedButtons, Surface } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
+import { Colors } from '../../theme/colors';
 import { useTransactionStore } from '../../store/transactionStore';
 import TransactionCard from '../../components/TransactionCard';
 
@@ -63,23 +64,23 @@ export default function TransactionsScreen() {
         style={styles.filter}
       />
 
-      <Surface style={styles.summary} elevation={1}>
+      <Surface style={styles.summary} elevation={0}>
         <View style={styles.summaryItem}>
-          <View style={[styles.summaryDot, { backgroundColor: '#4CAF50' }]} />
+          <View style={[styles.summaryDot, { backgroundColor: Colors.income }]} />
           <Text variant="bodySmall" style={styles.summaryLabel}>
             Income
           </Text>
-          <Text variant="titleMedium" style={styles.incomeValue}>
+          <Text variant="titleMedium" style={[styles.summaryValue, { color: Colors.income }]}>
             +${totalIncome.toFixed(2)}
           </Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.summaryItem}>
-          <View style={[styles.summaryDot, { backgroundColor: '#F44336' }]} />
+          <View style={[styles.summaryDot, { backgroundColor: Colors.expense }]} />
           <Text variant="bodySmall" style={styles.summaryLabel}>
             Expenses
           </Text>
-          <Text variant="titleMedium" style={styles.expenseValue}>
+          <Text variant="titleMedium" style={[styles.summaryValue, { color: Colors.expense }]}>
             -${totalExpenses.toFixed(2)}
           </Text>
         </View>
@@ -90,7 +91,7 @@ export default function TransactionsScreen() {
           </Text>
           <Text
             variant="titleMedium"
-            style={net >= 0 ? styles.incomeValue : styles.expenseValue}
+            style={[styles.summaryValue, { color: net >= 0 ? Colors.income : Colors.expense }]}
           >
             {net >= 0 ? '+' : ''}${net.toFixed(2)}
           </Text>
@@ -101,12 +102,12 @@ export default function TransactionsScreen() {
         data={transactions}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <TransactionCard transaction={item} />}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
         contentContainerStyle={[styles.list, { paddingBottom: TAB_BAR_HEIGHT + 16 }]}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={styles.emptyIconBg}>
-              <Icon source="format-list-bulleted" size={40} color="#CCC" />
+              <Icon source="format-list-bulleted" size={40} color={Colors.textDisabled} />
             </View>
             <Text variant="bodyLarge" style={styles.emptyTitle}>
               No transactions yet
@@ -124,12 +125,12 @@ export default function TransactionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#2196F3',
+    backgroundColor: Colors.primary,
   },
   title: {
     color: '#fff',
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surfaceCard,
     alignItems: 'center',
   },
   summaryItem: {
@@ -163,22 +164,16 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   summaryLabel: {
-    color: '#666',
+    color: Colors.textSecondary,
   },
-  incomeValue: {
+  summaryValue: {
     fontWeight: '700',
-    color: '#4CAF50',
-    marginTop: 2,
-  },
-  expenseValue: {
-    fontWeight: '700',
-    color: '#F44336',
     marginTop: 2,
   },
   divider: {
     width: 1,
     height: 32,
-    backgroundColor: '#E8E8E8',
+    backgroundColor: Colors.divider,
   },
   list: {
     paddingTop: 4,
@@ -192,18 +187,18 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: Colors.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   emptyTitle: {
-    color: '#666',
+    color: Colors.textSecondary,
     fontWeight: '600',
     marginBottom: 8,
   },
   emptyHint: {
-    color: '#999',
+    color: Colors.textTertiary,
     textAlign: 'center',
     lineHeight: 20,
   },

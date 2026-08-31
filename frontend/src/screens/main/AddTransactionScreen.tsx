@@ -7,12 +7,13 @@ import {
   SegmentedButtons,
   Surface,
   Menu,
-  TouchableRipple,
   Checkbox,
   Divider,
+  TouchableRipple,
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
+import { Colors } from '../../theme/colors';
 import { useTransactionStore } from '../../store/transactionStore';
 import { useAccountStore } from '../../store/accountStore';
 import { useCategoryStore } from '../../store/categoryStore';
@@ -82,7 +83,7 @@ export default function AddTransactionScreen({ navigation }: any) {
       </View>
 
       {/* Type Toggle */}
-      <Surface style={styles.card} elevation={2}>
+      <Surface style={styles.card} elevation={0}>
         <SegmentedButtons
           value={type}
           onValueChange={(v) => {
@@ -97,7 +98,7 @@ export default function AddTransactionScreen({ navigation }: any) {
       </Surface>
 
       {/* Amount Card */}
-      <Surface style={styles.card} elevation={2}>
+      <Surface style={styles.card} elevation={0}>
         <View style={styles.amountSection}>
           <Text variant="bodySmall" style={styles.fieldLabel}>
             Amount
@@ -112,7 +113,7 @@ export default function AddTransactionScreen({ navigation }: any) {
               mode="flat"
               keyboardType="decimal-pad"
               placeholder="0.00"
-              placeholderTextColor="#CCC"
+              placeholderTextColor={Colors.textDisabled}
               style={styles.amountField}
               underlineColor="transparent"
               activeUnderlineColor="transparent"
@@ -145,7 +146,7 @@ export default function AddTransactionScreen({ navigation }: any) {
       </Surface>
 
       {/* Account & Category */}
-      <Surface style={styles.card} elevation={2}>
+      <Surface style={styles.card} elevation={0}>
         <Text variant="bodySmall" style={styles.sectionLabel}>
           ACCOUNT & CATEGORY
         </Text>
@@ -164,7 +165,7 @@ export default function AddTransactionScreen({ navigation }: any) {
             >
               <View style={styles.selectorContent}>
                 <View style={styles.selectorLeft}>
-                  <Icon source="wallet" size={18} color="#2196F3" />
+                  <Icon source="wallet" size={18} color={Colors.primary} />
                   <Text
                     variant="bodyMedium"
                     style={selectedAccount ? styles.selectorText : styles.selectorPlaceholder}
@@ -172,7 +173,7 @@ export default function AddTransactionScreen({ navigation }: any) {
                     {selectedAccount ? selectedAccount.name : 'Select account'}
                   </Text>
                 </View>
-                <Icon source="chevron-down" size={14} color="#999" />
+                <Icon source="chevron-down" size={14} color={Colors.textTertiary} />
               </View>
             </TouchableOpacity>
           }
@@ -203,7 +204,7 @@ export default function AddTransactionScreen({ navigation }: any) {
             >
               <View style={styles.selectorContent}>
                 <View style={styles.selectorLeft}>
-                  <Icon source="tag" size={18} color="#2196F3" />
+                  <Icon source="tag" size={18} color={Colors.primary} />
                   <Text
                     variant="bodyMedium"
                     style={selectedCategory ? styles.selectorText : styles.selectorPlaceholder}
@@ -211,7 +212,7 @@ export default function AddTransactionScreen({ navigation }: any) {
                     {selectedCategory || 'Select category'}
                   </Text>
                 </View>
-                <Icon source="chevron-down" size={14} color="#999" />
+                <Icon source="chevron-down" size={14} color={Colors.textTertiary} />
               </View>
             </TouchableOpacity>
           }
@@ -230,14 +231,14 @@ export default function AddTransactionScreen({ navigation }: any) {
       </Surface>
 
       {/* Options */}
-      <Surface style={styles.card} elevation={2}>
+      <Surface style={styles.card} elevation={0}>
         <TouchableRipple
           onPress={() => setIsRecurring(!isRecurring)}
           style={styles.recurringToggle}
         >
           <View style={styles.recurringRow}>
             <View style={styles.recurringLeft}>
-              <Icon source="repeat" size={20} color="#666" />
+              <Icon source="repeat" size={20} color={Colors.textSecondary} />
               <View style={{ marginLeft: 12 }}>
                 <Text variant="bodyMedium" style={styles.recurringTitle}>
                   Recurring Transaction
@@ -250,7 +251,7 @@ export default function AddTransactionScreen({ navigation }: any) {
             <Checkbox
               status={isRecurring ? 'checked' : 'unchecked'}
               onPress={() => setIsRecurring(!isRecurring)}
-              color="#2196F3"
+              color={Colors.primary}
             />
           </View>
         </TouchableRipple>
@@ -264,7 +265,7 @@ export default function AddTransactionScreen({ navigation }: any) {
           loading={isLoading}
           disabled={isLoading}
           style={styles.submitButton}
-          buttonColor="#2196F3"
+          buttonColor={Colors.primary}
           contentStyle={{ paddingVertical: 6 }}
         >
           Add Transaction
@@ -279,7 +280,7 @@ export default function AddTransactionScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   content: {
     paddingBottom: 30,
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#2196F3',
+    backgroundColor: Colors.primary,
   },
   title: {
     color: '#fff',
@@ -298,29 +299,27 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surfaceCard,
   },
   sectionLabel: {
-    color: '#999',
+    color: Colors.textTertiary,
     fontWeight: '600',
     letterSpacing: 0.5,
     marginBottom: 12,
   },
   fieldLabel: {
-    color: '#666',
+    color: Colors.textSecondary,
     fontWeight: '600',
     marginBottom: 6,
   },
-  amountSection: {
-    // no padding needed, card has it
-  },
+  amountSection: {},
   amountInput: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
   dollarSign: {
-    color: '#333',
+    color: Colors.textPrimary,
     fontWeight: '700',
     marginRight: 4,
   },
@@ -329,21 +328,22 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     fontSize: 32,
     fontWeight: '700',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   divider: {
     marginBottom: 12,
+    backgroundColor: Colors.divider,
   },
   input: {
     marginBottom: 12,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: Colors.surfaceElevated,
   },
   selector: {
     borderWidth: 1,
-    borderColor: '#C8C8CA',
+    borderColor: Colors.border,
     borderRadius: 8,
     padding: 14,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: Colors.surfaceElevated,
   },
   selectorContent: {
     flexDirection: 'row',
@@ -356,10 +356,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   selectorText: {
-    color: '#333',
+    color: Colors.textPrimary,
   },
   selectorPlaceholder: {
-    color: '#999',
+    color: Colors.textTertiary,
   },
   recurringToggle: {
     paddingVertical: 4,
@@ -375,10 +375,10 @@ const styles = StyleSheet.create({
   },
   recurringTitle: {
     fontWeight: '600',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   recurringHint: {
-    color: '#999',
+    color: Colors.textTertiary,
     marginTop: 2,
   },
   submitSection: {

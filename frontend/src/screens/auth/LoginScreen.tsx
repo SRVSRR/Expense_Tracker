@@ -3,6 +3,7 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 're
 import { TextInput, Button, Text, Surface } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
+import { Colors } from '../../theme/colors';
 import { useAuthStore } from '../../store/authStore';
 
 export default function LoginScreen({ navigation }: any) {
@@ -50,7 +51,7 @@ export default function LoginScreen({ navigation }: any) {
         </View>
 
         {/* Form Card */}
-        <Surface style={styles.card} elevation={2}>
+        <Surface style={styles.card} elevation={0}>
           <Text variant="titleMedium" style={styles.cardTitle}>
             Welcome back
           </Text>
@@ -76,7 +77,7 @@ export default function LoginScreen({ navigation }: any) {
             right={
               <TextInput.Icon
                 icon={() => (
-                  <Icon source={showPassword ? 'eye-off' : 'eye'} size={18} color="#999" />
+                  <Icon source={showPassword ? 'eye-off' : 'eye'} size={18} color={Colors.textTertiary} />
                 )}
                 onPress={() => setShowPassword(!showPassword)}
               />
@@ -86,7 +87,7 @@ export default function LoginScreen({ navigation }: any) {
 
           {error ? (
             <View style={styles.errorContainer}>
-              <Icon source="alert-circle-outline" size={14} color="#F44336" />
+              <Icon source="alert-circle-outline" size={14} color={Colors.error} />
               <Text variant="bodySmall" style={styles.error}>
                 {error}
               </Text>
@@ -99,7 +100,7 @@ export default function LoginScreen({ navigation }: any) {
             loading={isLoading}
             disabled={isLoading}
             style={styles.button}
-            buttonColor="#2196F3"
+            buttonColor={Colors.primary}
             contentStyle={{ paddingVertical: 6 }}
           >
             Login
@@ -109,7 +110,7 @@ export default function LoginScreen({ navigation }: any) {
             mode="text"
             onPress={() => navigation.navigate('Register')}
             style={styles.linkButton}
-            textColor="#2196F3"
+            textColor={Colors.primary}
           >
             Don't have an account? Sign up
           </Button>
@@ -122,7 +123,7 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -137,32 +138,32 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 20,
-    backgroundColor: '#2196F3',
+    backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   title: {
     fontWeight: '700',
-    color: '#333',
+    color: Colors.textPrimary,
     marginBottom: 4,
   },
   subtitle: {
-    color: '#999',
+    color: Colors.textSecondary,
   },
   card: {
     padding: 24,
     borderRadius: 16,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surfaceCard,
   },
   cardTitle: {
     fontWeight: '700',
-    color: '#333',
+    color: Colors.textPrimary,
     marginBottom: 20,
   },
   input: {
     marginBottom: 14,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: Colors.surfaceElevated,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -170,11 +171,11 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 12,
     padding: 10,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: Colors.expenseSurface,
     borderRadius: 8,
   },
   error: {
-    color: '#F44336',
+    color: Colors.error,
     flex: 1,
   },
   button: {

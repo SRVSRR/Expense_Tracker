@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Card } from 'react-native-paper';
 import Icon from '../components/Icon';
+import { Colors } from '../theme/colors';
 import { Account } from '../api/accounts';
 
 interface Props {
@@ -17,7 +18,7 @@ export default function AccountCard({ account, onPress, onLongPress }: Props) {
     <Card style={styles.card} onPress={onPress} onLongPress={onLongPress}>
       <View style={styles.content}>
         <View style={styles.iconBg}>
-          <Icon source="wallet" size={24} color="#2196F3" />
+          <Icon source="wallet" size={24} color={Colors.primary} />
         </View>
         <View style={styles.info}>
           <Text variant="bodyLarge" style={styles.name}>
@@ -41,7 +42,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 16,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surfaceCard,
+    elevation: 0,
   },
   content: {
     flexDirection: 'row',
@@ -51,7 +53,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#E3F2FD',
+    backgroundColor: Colors.primarySurface,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -61,14 +63,14 @@ const styles = StyleSheet.create({
   },
   name: {
     fontWeight: '600',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   currency: {
-    color: '#999',
+    color: Colors.textTertiary,
     marginTop: 2,
   },
   balance: {
     fontWeight: '700',
-    color: '#333',
+    color: Colors.textPrimary,
   },
 });

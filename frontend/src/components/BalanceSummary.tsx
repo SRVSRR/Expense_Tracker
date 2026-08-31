@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Surface } from 'react-native-paper';
 import Icon from '../components/Icon';
+import { Colors } from '../theme/colors';
 import { Account } from '../api/accounts';
 
 interface Props {
@@ -14,7 +15,7 @@ export default function BalanceSummary({ accounts }: Props) {
   }, 0);
 
   return (
-    <Surface style={styles.container} elevation={3}>
+    <Surface style={styles.container} elevation={0}>
       <View style={styles.content}>
         <View style={styles.topRow}>
           <View>
@@ -47,7 +48,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     borderRadius: 16,
-    backgroundColor: '#2196F3',
+    backgroundColor: Colors.primary,
     overflow: 'hidden',
   },
   content: {

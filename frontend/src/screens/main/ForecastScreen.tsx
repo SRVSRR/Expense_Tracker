@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { Text, Surface, ActivityIndicator, Divider } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
+import { Colors } from '../../theme/colors';
 import { forecastApi, CashflowForecast, RunwayData, Anomaly } from '../../api/forecast';
 
 const TAB_BAR_HEIGHT = 52;
@@ -43,8 +44,8 @@ export default function ForecastScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
-        <Text variant="bodySmall" style={{ color: '#999', marginTop: 12 }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text variant="bodySmall" style={{ color: Colors.textTertiary, marginTop: 12 }}>
           Loading forecast...
         </Text>
       </View>
@@ -55,7 +56,7 @@ export default function ForecastScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 16 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
     >
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text variant="headlineSmall" style={styles.title}>
@@ -68,7 +69,7 @@ export default function ForecastScreen() {
 
       {/* Runway Card */}
       {runway && (
-        <Surface style={[styles.card, styles.runwayCard]} elevation={2}>
+        <Surface style={[styles.card, styles.runwayCard]} elevation={0}>
           <View style={styles.runwayHeader}>
             <View style={styles.runwayIconBg}>
               <Icon source="clock-outline" size={24} color="#fff" />
@@ -108,10 +109,10 @@ export default function ForecastScreen() {
 
       {/* Cash Flow Card */}
       {cashflow && (
-        <Surface style={styles.card} elevation={2}>
+        <Surface style={styles.card} elevation={0}>
           <View style={styles.cardHeader}>
-            <View style={[styles.cardIconBg, { backgroundColor: '#E8F5E9' }]}>
-              <Icon source="trending-up" size={20} color="#4CAF50" />
+            <View style={[styles.cardIconBg, { backgroundColor: Colors.incomeSurface }]}>
+              <Icon source="trending-up" size={20} color={Colors.income} />
             </View>
             <Text variant="titleMedium" style={styles.cardTitle}>
               30-Day Cash Flow
@@ -122,7 +123,7 @@ export default function ForecastScreen() {
               <Text variant="bodySmall" style={styles.cashflowLabel}>
                 Income
               </Text>
-              <Text variant="titleMedium" style={styles.positiveValue}>
+              <Text variant="titleMedium" style={{ fontWeight: '700', color: Colors.income }}>
                 +${cashflow.summary.total_income.toFixed(2)}
               </Text>
             </View>
@@ -131,7 +132,7 @@ export default function ForecastScreen() {
               <Text variant="bodySmall" style={styles.cashflowLabel}>
                 Expenses
               </Text>
-              <Text variant="titleMedium" style={styles.negativeValue}>
+              <Text variant="titleMedium" style={{ fontWeight: '700', color: Colors.expense }}>
                 -${cashflow.summary.total_expenses.toFixed(2)}
               </Text>
             </View>
@@ -143,7 +144,7 @@ export default function ForecastScreen() {
             </Text>
             <Text
               variant="titleLarge"
-              style={cashflow.summary.net_change >= 0 ? styles.positiveValue : styles.negativeValue}
+              style={{ fontWeight: '700', color: cashflow.summary.net_change >= 0 ? Colors.income : Colors.expense }}
             >
               {cashflow.summary.net_change >= 0 ? '+' : ''}$
               {cashflow.summary.net_change.toFixed(2)}
@@ -153,10 +154,10 @@ export default function ForecastScreen() {
       )}
 
       {/* Anomalies Card */}
-      <Surface style={styles.card} elevation={2}>
+      <Surface style={styles.card} elevation={0}>
         <View style={styles.cardHeader}>
-          <View style={[styles.cardIconBg, { backgroundColor: '#FFF3E0' }]}>
-            <Icon source="alert-circle-outline" size={20} color="#FF9800" />
+          <View style={[styles.cardIconBg, { backgroundColor: Colors.warningSurface }]}>
+            <Icon source="alert-circle-outline" size={20} color={Colors.warning} />
           </View>
           <Text variant="titleMedium" style={styles.cardTitle}>
             Anomalies
@@ -164,7 +165,7 @@ export default function ForecastScreen() {
         </View>
         {anomalies.length === 0 ? (
           <View style={styles.emptyAnomaly}>
-            <Icon source="check-circle" size={28} color="#4CAF50" />
+            <Icon source="check-circle" size={24} color={Colors.income} />
             <Text variant="bodyMedium" style={styles.emptyAnomalyText}>
               All clear — no unusual spending detected
             </Text>
@@ -178,9 +179,9 @@ export default function ForecastScreen() {
                   {
                     backgroundColor:
                       anomaly.severity === 'high'
-                        ? '#F44336'
+                        ? Colors.expense
                         : anomaly.severity === 'medium'
-                        ? '#FF9800'
+                        ? Colors.warning
                         : '#FFC107',
                   },
                 ]}
@@ -205,18 +206,18 @@ export default function ForecastScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#2196F3',
+    backgroundColor: Colors.primary,
   },
   title: {
     color: '#fff',
@@ -231,10 +232,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 18,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surfaceCard,
   },
   runwayCard: {
-    backgroundColor: '#2196F3',
+    backgroundColor: Colors.primary,
   },
   runwayHeader: {
     flexDirection: 'row',
@@ -305,7 +306,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontWeight: '700',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   cashflowRow: {
     flexDirection: 'row',
@@ -316,15 +317,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cashflowLabel: {
-    color: '#666',
+    color: Colors.textSecondary,
   },
   cashflowDivider: {
     width: 1,
     height: 28,
-    backgroundColor: '#E8E8E8',
+    backgroundColor: Colors.divider,
   },
   divider: {
     marginVertical: 12,
+    backgroundColor: Colors.divider,
   },
   netRow: {
     flexDirection: 'row',
@@ -332,16 +334,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   netLabel: {
-    color: '#333',
+    color: Colors.textPrimary,
     fontWeight: '600',
-  },
-  positiveValue: {
-    fontWeight: '700',
-    color: '#4CAF50',
-  },
-  negativeValue: {
-    fontWeight: '700',
-    color: '#F44336',
   },
   emptyAnomaly: {
     flexDirection: 'row',
@@ -350,7 +344,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   emptyAnomalyText: {
-    color: '#666',
+    color: Colors.textSecondary,
     flex: 1,
   },
   anomalyItem: {
@@ -358,7 +352,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F5F5',
+    borderBottomColor: Colors.divider,
   },
   severityDot: {
     width: 8,
@@ -371,10 +365,10 @@ const styles = StyleSheet.create({
   },
   anomalyDesc: {
     fontWeight: '600',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   anomalyMeta: {
-    color: '#999',
+    color: Colors.textTertiary,
     marginTop: 2,
   },
 });

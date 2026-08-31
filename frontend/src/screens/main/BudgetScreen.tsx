@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
 import { Text, Surface, ActivityIndicator, ProgressBar, Divider } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
+import { Colors } from '../../theme/colors';
 import { budgetApi, BudgetRecommendation, CategoryAnalysis } from '../../api/budget';
 
 const TAB_BAR_HEIGHT = 52;
@@ -14,9 +15,9 @@ const trendIcons: Record<string, string> = {
 };
 
 const trendColors: Record<string, string> = {
-  increasing: '#F44336',
-  decreasing: '#4CAF50',
-  stable: '#999',
+  increasing: Colors.expense,
+  decreasing: Colors.income,
+  stable: Colors.textTertiary,
 };
 
 export default function BudgetScreen() {
@@ -52,8 +53,8 @@ export default function BudgetScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2196F3" />
-        <Text variant="bodySmall" style={{ color: '#999', marginTop: 12 }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text variant="bodySmall" style={{ color: Colors.textTertiary, marginTop: 12 }}>
           Analyzing spending...
         </Text>
       </View>
@@ -64,7 +65,7 @@ export default function BudgetScreen() {
     <ScrollView
       style={styles.container}
       contentContainerStyle={{ paddingBottom: TAB_BAR_HEIGHT + 16 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
     >
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <Text variant="headlineSmall" style={styles.title}>
@@ -76,10 +77,10 @@ export default function BudgetScreen() {
       </View>
 
       {/* Recommendations */}
-      <Surface style={styles.card} elevation={2}>
+      <Surface style={styles.card} elevation={0}>
         <View style={styles.cardHeader}>
-          <View style={[styles.cardIconBg, { backgroundColor: '#E3F2FD' }]}>
-            <Icon source="chart-pie" size={20} color="#2196F3" />
+          <View style={[styles.cardIconBg, { backgroundColor: Colors.primarySurface }]}>
+            <Icon source="chart-pie" size={20} color={Colors.primary} />
           </View>
           <Text variant="titleMedium" style={styles.cardTitle}>
             Recommendations
@@ -87,7 +88,7 @@ export default function BudgetScreen() {
         </View>
         {recommendations.length === 0 ? (
           <View style={styles.emptyState}>
-            <Icon source="info" size={24} color="#CCC" />
+            <Icon source="info" size={24} color={Colors.textDisabled} />
             <Text variant="bodyMedium" style={styles.emptyText}>
               Add more transactions to get budget suggestions
             </Text>
@@ -100,10 +101,10 @@ export default function BudgetScreen() {
                   {rec.category}
                 </Text>
                 <View style={styles.trendBadge}>
-                  <Text style={[styles.trendIcon, { color: trendColors[rec.trend] || '#999' }]}>
+                  <Text style={[styles.trendIcon, { color: trendColors[rec.trend] || Colors.textTertiary }]}>
                     {trendIcons[rec.trend] || '\u2192'}
                   </Text>
-                  <Text variant="bodySmall" style={[styles.trendText, { color: trendColors[rec.trend] || '#999' }]}>
+                  <Text variant="bodySmall" style={[styles.trendText, { color: trendColors[rec.trend] || Colors.textTertiary }]}>
                     {rec.trend}
                   </Text>
                 </View>
@@ -133,10 +134,10 @@ export default function BudgetScreen() {
       </Surface>
 
       {/* Category Spending */}
-      <Surface style={styles.card} elevation={2}>
+      <Surface style={styles.card} elevation={0}>
         <View style={styles.cardHeader}>
-          <View style={[styles.cardIconBg, { backgroundColor: '#E8F5E9' }]}>
-            <Icon source="chart-bar" size={20} color="#4CAF50" />
+          <View style={[styles.cardIconBg, { backgroundColor: Colors.tertiarySurface }]}>
+            <Icon source="chart-bar" size={20} color={Colors.tertiary} />
           </View>
           <Text variant="titleMedium" style={styles.cardTitle}>
             Category Spending
@@ -144,7 +145,7 @@ export default function BudgetScreen() {
         </View>
         {categoryAnalysis.length === 0 ? (
           <View style={styles.emptyState}>
-            <Icon source="info" size={24} color="#CCC" />
+            <Icon source="info" size={24} color={Colors.textDisabled} />
             <Text variant="bodyMedium" style={styles.emptyText}>
               No spending data yet
             </Text>
@@ -162,7 +163,7 @@ export default function BudgetScreen() {
               </View>
               <ProgressBar
                 progress={cat.percentage_of_total / 100}
-                color={cat.percentage_of_total > 30 ? '#FF9800' : '#2196F3'}
+                color={cat.percentage_of_total > 30 ? Colors.warning : Colors.primary}
                 style={styles.progressBar}
               />
               <View style={styles.categoryFooter}>
@@ -171,7 +172,7 @@ export default function BudgetScreen() {
                 </Text>
                 <Text
                   variant="bodySmall"
-                  style={cat.month_over_month_change >= 0 ? styles.changeNeg : styles.changePos}
+                  style={{ fontWeight: '600', color: cat.month_over_month_change >= 0 ? Colors.expense : Colors.income }}
                 >
                   {cat.month_over_month_change >= 0 ? '+' : ''}
                   {cat.month_over_month_change.toFixed(1)}%
@@ -188,18 +189,18 @@ export default function BudgetScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: Colors.background,
   },
   header: {
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#2196F3',
+    backgroundColor: Colors.primary,
   },
   title: {
     color: '#fff',
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 18,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.surfaceCard,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -231,7 +232,7 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontWeight: '700',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   emptyState: {
     flexDirection: 'row',
@@ -240,13 +241,13 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   emptyText: {
-    color: '#999',
+    color: Colors.textTertiary,
     flex: 1,
   },
   recItem: {
     paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
+    borderTopColor: Colors.divider,
   },
   recHeader: {
     flexDirection: 'row',
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
   },
   recCategory: {
     fontWeight: '700',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   trendBadge: {
     flexDirection: 'row',
@@ -275,25 +276,25 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   recLabel: {
-    color: '#999',
+    color: Colors.textTertiary,
     marginBottom: 2,
   },
   recAmount: {
     fontWeight: '700',
-    color: '#2196F3',
+    color: Colors.primary,
   },
   recPeriod: {
     fontWeight: '400',
-    color: '#999',
+    color: Colors.textTertiary,
   },
   recHistorical: {
-    color: '#666',
+    color: Colors.textSecondary,
     fontWeight: '600',
   },
   categoryItem: {
     paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: '#F5F5F5',
+    borderTopColor: Colors.divider,
   },
   categoryHeader: {
     flexDirection: 'row',
@@ -303,11 +304,11 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     fontWeight: '700',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   categoryPercent: {
     fontWeight: '600',
-    color: '#2196F3',
+    color: Colors.primary,
   },
   progressBar: {
     height: 6,
@@ -319,14 +320,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   categoryStat: {
-    color: '#999',
-  },
-  changeNeg: {
-    fontWeight: '600',
-    color: '#F44336',
-  },
-  changePos: {
-    fontWeight: '600',
-    color: '#4CAF50',
+    color: Colors.textTertiary,
   },
 });

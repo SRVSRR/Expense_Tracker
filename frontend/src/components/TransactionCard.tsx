@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Card } from 'react-native-paper';
 import Icon from '../components/Icon';
+import { Colors } from '../theme/colors';
 import { Transaction } from '../api/transactions';
 
 interface Props {
@@ -11,9 +12,9 @@ interface Props {
 
 export default function TransactionCard({ transaction, onPress }: Props) {
   const isIncome = transaction.type === 'income';
-  const amountColor = isIncome ? '#4CAF50' : '#F44336';
+  const amountColor = isIncome ? Colors.income : Colors.expense;
   const icon = isIncome ? 'arrow-down-bold' : 'arrow-up-bold';
-  const iconBg = isIncome ? '#E8F5E9' : '#FFEBEE';
+  const iconBg = isIncome ? Colors.incomeSurface : Colors.expenseSurface;
 
   return (
     <Card style={styles.card} onPress={onPress}>
@@ -50,10 +51,9 @@ const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16,
     marginBottom: 2,
-    paddingVertical: 4,
-    paddingHorizontal: 0,
     borderRadius: 0,
     backgroundColor: 'transparent',
+    elevation: 0,
   },
   content: {
     flexDirection: 'row',
@@ -74,10 +74,10 @@ const styles = StyleSheet.create({
   },
   description: {
     fontWeight: '600',
-    color: '#333',
+    color: Colors.textPrimary,
   },
   meta: {
-    color: '#999',
+    color: Colors.textTertiary,
     marginTop: 2,
   },
   amountContainer: {
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   date: {
-    color: '#BBB',
+    color: Colors.textDisabled,
     marginTop: 2,
   },
 });
