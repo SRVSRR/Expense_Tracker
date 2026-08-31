@@ -1,6 +1,6 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
-import { Card, Text } from 'react-native-paper';
+import { View, StyleSheet } from 'react-native';
+import { Text, Card } from 'react-native-paper';
 import Icon from '../components/Icon';
 import { Account } from '../api/accounts';
 
@@ -15,18 +15,22 @@ export default function AccountCard({ account, onPress, onLongPress }: Props) {
 
   return (
     <Card style={styles.card} onPress={onPress} onLongPress={onLongPress}>
-      <Card.Content style={styles.content}>
-        <Icon source="wallet" size={32} color="#2196F3" />
-        <Text variant="titleMedium" style={styles.name}>
-          {account.name}
+      <View style={styles.content}>
+        <View style={styles.iconBg}>
+          <Icon source="wallet" size={24} color="#2196F3" />
+        </View>
+        <View style={styles.info}>
+          <Text variant="bodyLarge" style={styles.name}>
+            {account.name}
+          </Text>
+          <Text variant="bodySmall" style={styles.currency}>
+            {account.currency}
+          </Text>
+        </View>
+        <Text variant="titleMedium" style={styles.balance}>
+          {balance.toFixed(2)}
         </Text>
-        <Text variant="headlineSmall" style={styles.balance}>
-          {account.currency} {balance.toFixed(2)}
-        </Text>
-        <Text variant="bodySmall" style={styles.currency}>
-          {account.currency}
-        </Text>
-      </Card.Content>
+      </View>
     </Card>
   );
 }
@@ -34,25 +38,37 @@ export default function AccountCard({ account, onPress, onLongPress }: Props) {
 const styles = StyleSheet.create({
   card: {
     marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 16,
+    marginBottom: 10,
+    padding: 16,
+    borderRadius: 12,
     backgroundColor: '#fff',
   },
   content: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+  },
+  iconBg: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#E3F2FD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  info: {
+    flex: 1,
   },
   name: {
-    marginTop: 8,
     fontWeight: '600',
-  },
-  balance: {
-    marginTop: 4,
-    fontWeight: '700',
-    color: '#2196F3',
+    color: '#333',
   },
   currency: {
-    color: '#666',
+    color: '#999',
     marginTop: 2,
+  },
+  balance: {
+    fontWeight: '700',
+    color: '#333',
   },
 });

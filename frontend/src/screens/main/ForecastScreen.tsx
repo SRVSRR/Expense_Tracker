@@ -44,6 +44,9 @@ export default function ForecastScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2196F3" />
+        <Text variant="bodySmall" style={{ color: '#999', marginTop: 12 }}>
+          Loading forecast...
+        </Text>
       </View>
     );
   }
@@ -58,37 +61,44 @@ export default function ForecastScreen() {
         <Text variant="headlineSmall" style={styles.title}>
           Forecast
         </Text>
+        <Text variant="bodySmall" style={styles.subtitle}>
+          Projected financial outlook
+        </Text>
       </View>
 
+      {/* Runway Card */}
       {runway && (
-        <Surface style={styles.card} elevation={2}>
-          <View style={styles.cardHeader}>
-            <Icon source="clock-outline" size={28} color="#2196F3" />
-            <Text variant="titleMedium" style={styles.cardTitle}>
-              Runway
-            </Text>
+        <Surface style={[styles.card, styles.runwayCard]} elevation={2}>
+          <View style={styles.runwayHeader}>
+            <View style={styles.runwayIconBg}>
+              <Icon source="clock-outline" size={24} color="#fff" />
+            </View>
+            <View>
+              <Text variant="bodySmall" style={styles.runwayLabel}>
+                Financial Runway
+              </Text>
+              <Text variant="displaySmall" style={styles.runwayDays}>
+                {runway.days_until_zero}
+                <Text variant="bodyMedium" style={styles.runwayUnit}> days</Text>
+              </Text>
+            </View>
           </View>
-          <Text variant="displaySmall" style={styles.runwayDays}>
-            {runway.days_until_zero} days
-          </Text>
-          <Text variant="bodyMedium" style={styles.secondaryText}>
-            Until balance reaches $0
-          </Text>
-          <Divider style={styles.divider} />
+          <Divider style={styles.lightDivider} />
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text variant="bodySmall" style={styles.secondaryText}>
-                Current Balance
+              <Text variant="bodySmall" style={styles.statLabel}>
+                Balance
               </Text>
-              <Text variant="bodyLarge" style={styles.primaryValue}>
+              <Text variant="bodyLarge" style={styles.statValue}>
                 ${runway.current_balance.toFixed(2)}
               </Text>
             </View>
+            <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text variant="bodySmall" style={styles.secondaryText}>
+              <Text variant="bodySmall" style={styles.statLabel}>
                 Daily Burn
               </Text>
-              <Text variant="bodyLarge" style={styles.negativeValue}>
+              <Text variant="bodyLarge" style={styles.statNeg}>
                 ${runway.avg_daily_burn.toFixed(2)}/day
               </Text>
             </View>
@@ -96,26 +106,30 @@ export default function ForecastScreen() {
         </Surface>
       )}
 
+      {/* Cash Flow Card */}
       {cashflow && (
         <Surface style={styles.card} elevation={2}>
           <View style={styles.cardHeader}>
-            <Icon source="trending-up" size={24} color="#4CAF50" />
+            <View style={[styles.cardIconBg, { backgroundColor: '#E8F5E9' }]}>
+              <Icon source="trending-up" size={20} color="#4CAF50" />
+            </View>
             <Text variant="titleMedium" style={styles.cardTitle}>
               30-Day Cash Flow
             </Text>
           </View>
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text variant="bodySmall" style={styles.secondaryText}>
-                Projected Income
+          <View style={styles.cashflowRow}>
+            <View style={styles.cashflowItem}>
+              <Text variant="bodySmall" style={styles.cashflowLabel}>
+                Income
               </Text>
               <Text variant="titleMedium" style={styles.positiveValue}>
                 +${cashflow.summary.total_income.toFixed(2)}
               </Text>
             </View>
-            <View style={styles.statItem}>
-              <Text variant="bodySmall" style={styles.secondaryText}>
-                Projected Expenses
+            <View style={styles.cashflowDivider} />
+            <View style={styles.cashflowItem}>
+              <Text variant="bodySmall" style={styles.cashflowLabel}>
+                Expenses
               </Text>
               <Text variant="titleMedium" style={styles.negativeValue}>
                 -${cashflow.summary.total_expenses.toFixed(2)}
@@ -123,8 +137,8 @@ export default function ForecastScreen() {
             </View>
           </View>
           <Divider style={styles.divider} />
-          <View style={styles.centeredItem}>
-            <Text variant="bodyMedium" style={styles.secondaryText}>
+          <View style={styles.netRow}>
+            <Text variant="bodyMedium" style={styles.netLabel}>
               Net Change
             </Text>
             <Text
@@ -138,17 +152,23 @@ export default function ForecastScreen() {
         </Surface>
       )}
 
+      {/* Anomalies Card */}
       <Surface style={styles.card} elevation={2}>
         <View style={styles.cardHeader}>
-          <Icon source="alert-circle-outline" size={24} color="#FF9800" />
+          <View style={[styles.cardIconBg, { backgroundColor: '#FFF3E0' }]}>
+            <Icon source="alert-circle-outline" size={20} color="#FF9800" />
+          </View>
           <Text variant="titleMedium" style={styles.cardTitle}>
             Anomalies
           </Text>
         </View>
         {anomalies.length === 0 ? (
-          <Text variant="bodyMedium" style={styles.emptyText}>
-            No anomalies detected
-          </Text>
+          <View style={styles.emptyAnomaly}>
+            <Icon source="check-circle" size={28} color="#4CAF50" />
+            <Text variant="bodyMedium" style={styles.emptyAnomalyText}>
+              All clear — no unusual spending detected
+            </Text>
+          </View>
         ) : (
           anomalies.slice(0, 5).map((anomaly) => (
             <View key={anomaly.id} style={styles.anomalyItem}>
@@ -169,9 +189,9 @@ export default function ForecastScreen() {
                 <Text variant="bodyMedium" style={styles.anomalyDesc}>
                   {anomaly.description}
                 </Text>
-                <Text variant="bodySmall" style={styles.hintText}>
-                  {anomaly.category} • ${anomaly.amount.toFixed(2)} •{' '}
-                  {anomaly.severity} severity
+                <Text variant="bodySmall" style={styles.anomalyMeta}>
+                  {anomaly.category} &middot; ${anomaly.amount.toFixed(2)} &middot;{' '}
+                  {anomaly.severity}
                 </Text>
               </View>
             </View>
@@ -194,84 +214,156 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     backgroundColor: '#2196F3',
   },
   title: {
     color: '#fff',
     fontWeight: '700',
   },
+  subtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
+  },
   card: {
     marginHorizontal: 16,
-    marginTop: 16,
-    padding: 20,
-    borderRadius: 16,
+    marginTop: 12,
+    padding: 18,
+    borderRadius: 12,
     backgroundColor: '#fff',
+  },
+  runwayCard: {
+    backgroundColor: '#2196F3',
+  },
+  runwayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  runwayIconBg: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  runwayLabel: {
+    color: 'rgba(255,255,255,0.7)',
+  },
+  runwayDays: {
+    fontWeight: '700',
+    color: '#fff',
+  },
+  runwayUnit: {
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '400',
+  },
+  lightDivider: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    marginVertical: 14,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  statLabel: {
+    color: 'rgba(255,255,255,0.7)',
+  },
+  statValue: {
+    fontWeight: '700',
+    color: '#fff',
+    marginTop: 2,
+  },
+  statNeg: {
+    fontWeight: '700',
+    color: '#FFCDD2',
+    marginTop: 2,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
+    gap: 10,
   },
-  cardTitle: {
-    marginLeft: 8,
-    fontWeight: '600',
-  },
-  runwayDays: {
-    fontWeight: '700',
-    color: '#2196F3',
-  },
-  secondaryText: {
-    color: '#666',
-  },
-  hintText: {
-    color: '#666',
-    marginTop: 2,
-  },
-  divider: {
-    marginVertical: 16,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
+  cardIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  primaryValue: {
+  cardTitle: {
     fontWeight: '700',
-    marginTop: 4,
-    color: '#2196F3',
+    color: '#333',
+  },
+  cashflowRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  cashflowItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  cashflowLabel: {
+    color: '#666',
+  },
+  cashflowDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: '#E8E8E8',
+  },
+  divider: {
+    marginVertical: 12,
+  },
+  netRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  netLabel: {
+    color: '#333',
+    fontWeight: '600',
   },
   positiveValue: {
     fontWeight: '700',
-    marginTop: 4,
     color: '#4CAF50',
   },
   negativeValue: {
     fontWeight: '700',
-    marginTop: 4,
     color: '#F44336',
   },
-  centeredItem: {
+  emptyAnomaly: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+    padding: 8,
   },
-  emptyText: {
-    textAlign: 'center',
+  emptyAnomalyText: {
     color: '#666',
-    padding: 16,
+    flex: 1,
   },
   anomalyItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    borderBottomColor: '#F5F5F5',
   },
   severityDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     marginRight: 12,
   },
   anomalyInfo: {
@@ -279,5 +371,10 @@ const styles = StyleSheet.create({
   },
   anomalyDesc: {
     fontWeight: '600',
+    color: '#333',
+  },
+  anomalyMeta: {
+    color: '#999',
+    marginTop: 2,
   },
 });

@@ -15,18 +15,27 @@ export default function BalanceSummary({ accounts }: Props) {
 
   return (
     <Surface style={styles.container} elevation={3}>
-      <Text variant="bodyMedium" style={styles.label}>
-        Total Balance
-      </Text>
-      <Text variant="headlineLarge" style={styles.amount}>
-        ${totalBalance.toFixed(2)}
-      </Text>
-      <View style={styles.row}>
-        <View style={styles.stat}>
-          <Icon source="wallet" size={16} color="#2196F3" />
-          <Text variant="bodySmall" style={styles.statText}>
-            {accounts.length} account{accounts.length !== 1 ? 's' : ''}
-          </Text>
+      <View style={styles.content}>
+        <View style={styles.topRow}>
+          <View>
+            <Text variant="bodySmall" style={styles.label}>
+              Total Balance
+            </Text>
+            <Text variant="headlineLarge" style={styles.amount}>
+              ${totalBalance.toFixed(2)}
+            </Text>
+          </View>
+          <View style={styles.iconCircle}>
+            <Icon source="wallet" size={28} color="rgba(255,255,255,0.9)" />
+          </View>
+        </View>
+        <View style={styles.bottomRow}>
+          <View style={styles.accountBadge}>
+            <Icon source="account" size={14} color="rgba(255,255,255,0.7)" />
+            <Text variant="bodySmall" style={styles.accountCount}>
+              {accounts.length} account{accounts.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
         </View>
       </View>
     </Surface>
@@ -35,32 +44,48 @@ export default function BalanceSummary({ accounts }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    margin: 16,
-    padding: 20,
+    marginHorizontal: 16,
+    marginTop: 16,
     borderRadius: 16,
     backgroundColor: '#2196F3',
+    overflow: 'hidden',
+  },
+  content: {
+    padding: 20,
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   label: {
-    color: 'rgba(255,255,255,0.8)',
-    textAlign: 'center',
+    color: 'rgba(255,255,255,0.7)',
   },
   amount: {
     color: '#fff',
     fontWeight: '700',
-    textAlign: 'center',
     marginTop: 4,
-    marginBottom: 12,
   },
-  row: {
-    flexDirection: 'row',
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
+    alignItems: 'center',
   },
-  stat: {
+  bottomRow: {
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.15)',
+  },
+  accountBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
   },
-  statText: {
+  accountCount: {
     color: 'rgba(255,255,255,0.8)',
   },
 });

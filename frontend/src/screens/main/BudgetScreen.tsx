@@ -7,6 +7,18 @@ import { budgetApi, BudgetRecommendation, CategoryAnalysis } from '../../api/bud
 
 const TAB_BAR_HEIGHT = 56;
 
+const trendIcons: Record<string, string> = {
+  increasing: '\u2191',
+  decreasing: '\u2193',
+  stable: '\u2192',
+};
+
+const trendColors: Record<string, string> = {
+  increasing: '#F44336',
+  decreasing: '#4CAF50',
+  stable: '#999',
+};
+
 export default function BudgetScreen() {
   const insets = useSafeAreaInsets();
   const [recommendations, setRecommendations] = useState<BudgetRecommendation[]>([]);
@@ -41,6 +53,9 @@ export default function BudgetScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#2196F3" />
+        <Text variant="bodySmall" style={{ color: '#999', marginTop: 12 }}>
+          Analyzing spending...
+        </Text>
       </View>
     );
   }
@@ -55,19 +70,28 @@ export default function BudgetScreen() {
         <Text variant="headlineSmall" style={styles.title}>
           Budget
         </Text>
+        <Text variant="bodySmall" style={styles.subtitle}>
+          Smart spending recommendations
+        </Text>
       </View>
 
+      {/* Recommendations */}
       <Surface style={styles.card} elevation={2}>
         <View style={styles.cardHeader}>
-          <Icon source="chart-pie" size={24} color="#2196F3" />
+          <View style={[styles.cardIconBg, { backgroundColor: '#E3F2FD' }]}>
+            <Icon source="chart-pie" size={20} color="#2196F3" />
+          </View>
           <Text variant="titleMedium" style={styles.cardTitle}>
             Recommendations
           </Text>
         </View>
         {recommendations.length === 0 ? (
-          <Text variant="bodyMedium" style={styles.emptyText}>
-            No recommendations yet. Add more transactions to get budget suggestions.
-          </Text>
+          <View style={styles.emptyState}>
+            <Icon source="info" size={24} color="#CCC" />
+            <Text variant="bodyMedium" style={styles.emptyText}>
+              Add more transactions to get budget suggestions
+            </Text>
+          </View>
         ) : (
           recommendations.slice(0, 5).map((rec, index) => (
             <View key={index} style={styles.recItem}>
@@ -75,33 +99,56 @@ export default function BudgetScreen() {
                 <Text variant="bodyMedium" style={styles.recCategory}>
                   {rec.category}
                 </Text>
-                <Text variant="bodySmall" style={styles.secondaryText}>
-                  {rec.trend === 'increasing' ? '\u2191' : rec.trend === 'decreasing' ? '\u2193' : '\u2192'}{' '}
-                  {rec.trend}
-                </Text>
+                <View style={styles.trendBadge}>
+                  <Text style={[styles.trendIcon, { color: trendColors[rec.trend] || '#999' }]}>
+                    {trendIcons[rec.trend] || '\u2192'}
+                  </Text>
+                  <Text variant="bodySmall" style={[styles.trendText, { color: trendColors[rec.trend] || '#999' }]}>
+                    {rec.trend}
+                  </Text>
+                </View>
               </View>
-              <Text variant="bodySmall" style={styles.primaryValue}>
-                Recommended: ${rec.recommended_limit.toFixed(2)}/month
-              </Text>
-              <Text variant="bodySmall" style={styles.hintText}>
-                Historical avg: ${rec.historical_average.toFixed(2)}/month
-              </Text>
+              <View style={styles.recValues}>
+                <View>
+                  <Text variant="bodySmall" style={styles.recLabel}>
+                    Recommended
+                  </Text>
+                  <Text variant="bodyLarge" style={styles.recAmount}>
+                    ${rec.recommended_limit.toFixed(2)}
+                    <Text variant="bodySmall" style={styles.recPeriod}>/month</Text>
+                  </Text>
+                </View>
+                <View>
+                  <Text variant="bodySmall" style={styles.recLabel}>
+                    Historical avg
+                  </Text>
+                  <Text variant="bodySmall" style={styles.recHistorical}>
+                    ${rec.historical_average.toFixed(2)}/month
+                  </Text>
+                </View>
+              </View>
             </View>
           ))
         )}
       </Surface>
 
+      {/* Category Spending */}
       <Surface style={styles.card} elevation={2}>
         <View style={styles.cardHeader}>
-          <Icon source="chart-bar" size={24} color="#4CAF50" />
+          <View style={[styles.cardIconBg, { backgroundColor: '#E8F5E9' }]}>
+            <Icon source="chart-bar" size={20} color="#4CAF50" />
+          </View>
           <Text variant="titleMedium" style={styles.cardTitle}>
             Category Spending
           </Text>
         </View>
         {categoryAnalysis.length === 0 ? (
-          <Text variant="bodyMedium" style={styles.emptyText}>
-            No spending data yet.
-          </Text>
+          <View style={styles.emptyState}>
+            <Icon source="info" size={24} color="#CCC" />
+            <Text variant="bodyMedium" style={styles.emptyText}>
+              No spending data yet
+            </Text>
+          </View>
         ) : (
           categoryAnalysis.slice(0, 8).map((cat, index) => (
             <View key={index} style={styles.categoryItem}>
@@ -109,28 +156,25 @@ export default function BudgetScreen() {
                 <Text variant="bodyMedium" style={styles.categoryName}>
                   {cat.category}
                 </Text>
-                <Text variant="bodySmall" style={styles.secondaryText}>
+                <Text variant="bodySmall" style={styles.categoryPercent}>
                   {cat.percentage_of_total.toFixed(1)}%
                 </Text>
               </View>
               <ProgressBar
                 progress={cat.percentage_of_total / 100}
-                color="#2196F3"
+                color={cat.percentage_of_total > 30 ? '#FF9800' : '#2196F3'}
                 style={styles.progressBar}
               />
-              <View style={styles.categoryStats}>
-                <Text variant="bodySmall" style={styles.hintText}>
-                  ${cat.total_spent.toFixed(2)} total
-                </Text>
-                <Text variant="bodySmall" style={styles.hintText}>
-                  {cat.transaction_count} transactions
+              <View style={styles.categoryFooter}>
+                <Text variant="bodySmall" style={styles.categoryStat}>
+                  ${cat.total_spent.toFixed(2)} &middot; {cat.transaction_count} txns
                 </Text>
                 <Text
                   variant="bodySmall"
-                  style={cat.month_over_month_change >= 0 ? styles.negativeValue : styles.positiveValue}
+                  style={cat.month_over_month_change >= 0 ? styles.changeNeg : styles.changePos}
                 >
                   {cat.month_over_month_change >= 0 ? '+' : ''}
-                  {cat.month_over_month_change.toFixed(1)}% vs last month
+                  {cat.month_over_month_change.toFixed(1)}%
                 </Text>
               </View>
             </View>
@@ -153,88 +197,136 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
   },
   header: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     backgroundColor: '#2196F3',
   },
   title: {
     color: '#fff',
     fontWeight: '700',
   },
+  subtitle: {
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 4,
+  },
   card: {
     marginHorizontal: 16,
-    marginTop: 16,
-    padding: 20,
-    borderRadius: 16,
+    marginTop: 12,
+    padding: 18,
+    borderRadius: 12,
     backgroundColor: '#fff',
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
+    gap: 10,
+  },
+  cardIconBg: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   cardTitle: {
-    marginLeft: 8,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: '#333',
+  },
+  emptyState: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
   },
   emptyText: {
-    textAlign: 'center',
-    color: '#666',
-    padding: 16,
-  },
-  secondaryText: {
-    color: '#666',
-  },
-  hintText: {
-    color: '#666',
-    marginTop: 2,
-  },
-  primaryValue: {
-    color: '#2196F3',
-    marginTop: 4,
-  },
-  positiveValue: {
-    fontWeight: '600',
-    marginTop: 4,
-    color: '#4CAF50',
-  },
-  negativeValue: {
-    fontWeight: '600',
-    marginTop: 4,
-    color: '#F44336',
+    color: '#999',
+    flex: 1,
   },
   recItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
   },
   recHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
   recCategory: {
+    fontWeight: '700',
+    color: '#333',
+  },
+  trendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  trendIcon: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  trendText: {
+    fontWeight: '600',
+  },
+  recValues: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  recLabel: {
+    color: '#999',
+    marginBottom: 2,
+  },
+  recAmount: {
+    fontWeight: '700',
+    color: '#2196F3',
+  },
+  recPeriod: {
+    fontWeight: '400',
+    color: '#999',
+  },
+  recHistorical: {
+    color: '#666',
     fontWeight: '600',
   },
   categoryItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
   },
   categoryHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 6,
   },
   categoryName: {
+    fontWeight: '700',
+    color: '#333',
+  },
+  categoryPercent: {
     fontWeight: '600',
+    color: '#2196F3',
   },
   progressBar: {
-    marginVertical: 8,
     height: 6,
     borderRadius: 3,
+    marginBottom: 6,
   },
-  categoryStats: {
+  categoryFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  categoryStat: {
+    color: '#999',
+  },
+  changeNeg: {
+    fontWeight: '600',
+    color: '#F44336',
+  },
+  changePos: {
+    fontWeight: '600',
+    color: '#4CAF50',
   },
 });

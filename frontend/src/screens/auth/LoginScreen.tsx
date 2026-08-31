@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { TextInput, Button, Text, Surface, useTheme } from 'react-native-paper';
+import { TextInput, Button, Text, Surface } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from '../../components/Icon';
 import { useAuthStore } from '../../store/authStore';
 
 export default function LoginScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const login = useAuthStore((state) => state.login);
-  const theme = useTheme();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -32,17 +35,26 @@ export default function LoginScreen({ navigation }: any) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 40 }]}>
+        {/* Brand Header */}
+        <View style={styles.brand}>
+          <View style={styles.logoBg}>
+            <Icon source="wallet" size={36} color="#fff" />
+          </View>
           <Text variant="headlineMedium" style={styles.title}>
             Expense Tracker
           </Text>
           <Text variant="bodyMedium" style={styles.subtitle}>
-            Manage your finances smartly
+            Take control of your finances
           </Text>
         </View>
 
+        {/* Form Card */}
         <Surface style={styles.card} elevation={2}>
+          <Text variant="titleMedium" style={styles.cardTitle}>
+            Welcome back
+          </Text>
+
           <TextInput
             label="Email"
             value={email}
@@ -51,6 +63,7 @@ export default function LoginScreen({ navigation }: any) {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            left={<TextInput.Affix text="\u2709" />}
             style={styles.input}
           />
           <TextInput
@@ -58,14 +71,26 @@ export default function LoginScreen({ navigation }: any) {
             value={password}
             onChangeText={setPassword}
             mode="outlined"
-            secureTextEntry
+            secureTextEntry={!showPassword}
+            left={<TextInput.Affix text="\u26BF" />}
+            right={
+              <TextInput.Icon
+                icon={() => (
+                  <Icon source={showPassword ? 'eye-off' : 'eye'} size={18} color="#999" />
+                )}
+                onPress={() => setShowPassword(!showPassword)}
+              />
+            }
             style={styles.input}
           />
 
           {error ? (
-            <Text variant="bodySmall" style={styles.error}>
-              {error}
-            </Text>
+            <View style={styles.errorContainer}>
+              <Icon source="alert-circle-outline" size={14} color="#F44336" />
+              <Text variant="bodySmall" style={styles.error}>
+                {error}
+              </Text>
+            </View>
           ) : null}
 
           <Button
@@ -75,6 +100,7 @@ export default function LoginScreen({ navigation }: any) {
             disabled={isLoading}
             style={styles.button}
             buttonColor="#2196F3"
+            contentStyle={{ paddingVertical: 6 }}
           >
             Login
           </Button>
@@ -101,37 +127,59 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
   },
-  header: {
+  brand: {
     alignItems: 'center',
     marginBottom: 40,
   },
+  logoBg: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: '#2196F3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   title: {
-    fontWeight: 'bold',
-    color: '#2196F3',
-    marginBottom: 8,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 4,
   },
   subtitle: {
-    color: '#666',
+    color: '#999',
   },
   card: {
     padding: 24,
     borderRadius: 16,
     backgroundColor: '#fff',
   },
+  cardTitle: {
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 20,
+  },
   input: {
-    marginBottom: 16,
+    marginBottom: 14,
+    backgroundColor: '#FAFAFA',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+    padding: 10,
+    backgroundColor: '#FFF5F5',
+    borderRadius: 8,
   },
   error: {
     color: '#F44336',
-    marginBottom: 12,
-    textAlign: 'center',
+    flex: 1,
   },
   button: {
-    marginTop: 8,
-    borderRadius: 8,
-    paddingVertical: 4,
+    marginTop: 4,
+    borderRadius: 10,
   },
   linkButton: {
     marginTop: 12,

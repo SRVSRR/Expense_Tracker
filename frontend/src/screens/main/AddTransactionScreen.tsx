@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import {
   TextInput,
   Button,
@@ -9,12 +9,15 @@ import {
   Menu,
   TouchableRipple,
   Checkbox,
+  Divider,
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
 import { useTransactionStore } from '../../store/transactionStore';
 import { useAccountStore } from '../../store/accountStore';
 import { useCategoryStore } from '../../store/categoryStore';
+
+const TAB_BAR_HEIGHT = 56;
 
 export default function AddTransactionScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -44,7 +47,7 @@ export default function AddTransactionScreen({ navigation }: any) {
 
   const handleSubmit = async () => {
     if (!amount || !description || !selectedCategory || !selectedAccountId) {
-      Alert.alert('Error', 'Please fill in all required fields');
+      Alert.alert('Missing Fields', 'Please fill in all required fields.');
       return;
     }
 
@@ -78,10 +81,8 @@ export default function AddTransactionScreen({ navigation }: any) {
         </Text>
       </View>
 
+      {/* Type Toggle */}
       <Surface style={styles.card} elevation={2}>
-        <Text variant="titleMedium" style={styles.label}>
-          Type
-        </Text>
         <SegmentedButtons
           value={type}
           onValueChange={(v) => {
@@ -92,62 +93,88 @@ export default function AddTransactionScreen({ navigation }: any) {
             { value: 'income', label: 'Income' },
             { value: 'expense', label: 'Expense' },
           ]}
-          style={styles.segment}
         />
+      </Surface>
 
-        <TextInput
-          label="Amount *"
-          value={amount}
-          onChangeText={setAmount}
-          mode="outlined"
-          keyboardType="decimal-pad"
-          left={<TextInput.Affix text="$" />}
-          style={styles.input}
-        />
+      {/* Amount Card */}
+      <Surface style={styles.card} elevation={2}>
+        <View style={styles.amountSection}>
+          <Text variant="bodySmall" style={styles.fieldLabel}>
+            Amount
+          </Text>
+          <View style={styles.amountInput}>
+            <Text variant="headlineMedium" style={styles.dollarSign}>
+              $
+            </Text>
+            <TextInput
+              value={amount}
+              onChangeText={setAmount}
+              mode="flat"
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+              placeholderTextColor="#CCC"
+              style={styles.amountField}
+              underlineColor="transparent"
+              activeUnderlineColor="transparent"
+            />
+          </View>
+          <Divider style={styles.divider} />
+          <TextInput
+            label="Description *"
+            value={description}
+            onChangeText={setDescription}
+            mode="outlined"
+            style={styles.input}
+          />
+          <TextInput
+            label="Merchant (optional)"
+            value={merchant}
+            onChangeText={setMerchant}
+            mode="outlined"
+            style={styles.input}
+          />
+          <TextInput
+            label="Date *"
+            value={date}
+            onChangeText={setDate}
+            mode="outlined"
+            placeholder="YYYY-MM-DD"
+            style={styles.input}
+          />
+        </View>
+      </Surface>
 
-        <TextInput
-          label="Description *"
-          value={description}
-          onChangeText={setDescription}
-          mode="outlined"
-          style={styles.input}
-        />
+      {/* Account & Category */}
+      <Surface style={styles.card} elevation={2}>
+        <Text variant="bodySmall" style={styles.sectionLabel}>
+          ACCOUNT & CATEGORY
+        </Text>
 
-        <TextInput
-          label="Merchant (optional)"
-          value={merchant}
-          onChangeText={setMerchant}
-          mode="outlined"
-          style={styles.input}
-        />
-
-        <TextInput
-          label="Date *"
-          value={date}
-          onChangeText={setDate}
-          mode="outlined"
-          placeholder="YYYY-MM-DD"
-          style={styles.input}
-        />
-
-        <Text variant="titleMedium" style={styles.label}>
+        <Text variant="bodyMedium" style={styles.fieldLabel}>
           Account *
         </Text>
         <Menu
           visible={accountMenuVisible}
           onDismiss={() => setAccountMenuVisible(false)}
           anchor={
-            <TouchableRipple
+            <TouchableOpacity
               onPress={() => setAccountMenuVisible(true)}
               style={styles.selector}
+              activeOpacity={0.7}
             >
               <View style={styles.selectorContent}>
-                <Text variant="bodyLarge">
-                  {selectedAccount ? selectedAccount.name : 'Select account'}
-                </Text>
-                <Icon source="chevron-down" size={20} color="#666" />
+                <View style={styles.selectorLeft}>
+                  <Icon source="wallet" size={18} color="#2196F3" />
+                  <Text
+                    variant="bodyMedium"
+                    style={selectedAccount ? styles.selectorText : styles.selectorPlaceholder}
+                  >
+                    {selectedAccount ? selectedAccount.name : 'Select account'}
+                  </Text>
+                </View>
+                <Icon source="chevron-down" size={14} color="#999" />
               </View>
-            </TouchableRipple>
+            </TouchableOpacity>
           }
         >
           {accounts.map((account) => (
@@ -162,24 +189,31 @@ export default function AddTransactionScreen({ navigation }: any) {
           ))}
         </Menu>
 
-        <Text variant="titleMedium" style={styles.label}>
+        <Text variant="bodyMedium" style={[styles.fieldLabel, { marginTop: 12 }]}>
           Category *
         </Text>
         <Menu
           visible={categoryMenuVisible}
           onDismiss={() => setCategoryMenuVisible(false)}
           anchor={
-            <TouchableRipple
+            <TouchableOpacity
               onPress={() => setCategoryMenuVisible(true)}
               style={styles.selector}
+              activeOpacity={0.7}
             >
               <View style={styles.selectorContent}>
-                <Text variant="bodyLarge">
-                  {selectedCategory || 'Select category'}
-                </Text>
-                <Icon source="chevron-down" size={20} color="#666" />
+                <View style={styles.selectorLeft}>
+                  <Icon source="tag" size={18} color="#2196F3" />
+                  <Text
+                    variant="bodyMedium"
+                    style={selectedCategory ? styles.selectorText : styles.selectorPlaceholder}
+                  >
+                    {selectedCategory || 'Select category'}
+                  </Text>
+                </View>
+                <Icon source="chevron-down" size={14} color="#999" />
               </View>
-            </TouchableRipple>
+            </TouchableOpacity>
           }
         >
           {filteredCategories.map((cat) => (
@@ -193,35 +227,51 @@ export default function AddTransactionScreen({ navigation }: any) {
             />
           ))}
         </Menu>
+      </Surface>
 
+      {/* Options */}
+      <Surface style={styles.card} elevation={2}>
         <TouchableRipple
           onPress={() => setIsRecurring(!isRecurring)}
           style={styles.recurringToggle}
         >
           <View style={styles.recurringRow}>
+            <View style={styles.recurringLeft}>
+              <Icon source="repeat" size={20} color="#666" />
+              <View style={{ marginLeft: 12 }}>
+                <Text variant="bodyMedium" style={styles.recurringTitle}>
+                  Recurring Transaction
+                </Text>
+                <Text variant="bodySmall" style={styles.recurringHint}>
+                  Mark if this repeats regularly
+                </Text>
+              </View>
+            </View>
             <Checkbox
               status={isRecurring ? 'checked' : 'unchecked'}
               onPress={() => setIsRecurring(!isRecurring)}
+              color="#2196F3"
             />
-            <Text variant="bodyLarge" style={styles.recurringText}>
-              Recurring transaction
-            </Text>
           </View>
         </TouchableRipple>
+      </Surface>
 
+      {/* Submit */}
+      <View style={styles.submitSection}>
         <Button
           mode="contained"
           onPress={handleSubmit}
           loading={isLoading}
           disabled={isLoading}
-          style={styles.button}
+          style={styles.submitButton}
           buttonColor="#2196F3"
+          contentStyle={{ paddingVertical: 6 }}
         >
           Add Transaction
         </Button>
-      </Surface>
+      </View>
 
-      <View style={{ height: 80 }} />
+      <View style={{ height: TAB_BAR_HEIGHT + 16 }} />
     </ScrollView>
   );
 }
@@ -235,7 +285,8 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   header: {
-    padding: 16,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     backgroundColor: '#2196F3',
   },
   title: {
@@ -244,46 +295,97 @@ const styles = StyleSheet.create({
   },
   card: {
     marginHorizontal: 16,
-    marginTop: 16,
-    padding: 20,
-    borderRadius: 16,
+    marginTop: 12,
+    padding: 16,
+    borderRadius: 12,
     backgroundColor: '#fff',
   },
-  label: {
+  sectionLabel: {
+    color: '#999',
     fontWeight: '600',
+    letterSpacing: 0.5,
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    color: '#666',
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  amountSection: {
+    // no padding needed, card has it
+  },
+  amountInput: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  segment: {
-    marginBottom: 16,
+  dollarSign: {
+    color: '#333',
+    fontWeight: '700',
+    marginRight: 4,
+  },
+  amountField: {
+    flex: 1,
+    backgroundColor: 'transparent',
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#333',
+  },
+  divider: {
+    marginBottom: 12,
   },
   input: {
-    marginBottom: 16,
+    marginBottom: 12,
+    backgroundColor: '#FAFAFA',
   },
   selector: {
     borderWidth: 1,
-    borderColor: '#79747E',
-    borderRadius: 4,
-    padding: 16,
-    marginBottom: 16,
+    borderColor: '#C8C8CA',
+    borderRadius: 8,
+    padding: 14,
+    backgroundColor: '#FAFAFA',
   },
   selectorContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  selectorLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  selectorText: {
+    color: '#333',
+  },
+  selectorPlaceholder: {
+    color: '#999',
+  },
   recurringToggle: {
-    marginBottom: 20,
+    paddingVertical: 4,
   },
   recurringRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
   },
-  recurringText: {
-    flex: 1,
+  recurringLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  button: {
-    borderRadius: 8,
-    paddingVertical: 4,
+  recurringTitle: {
+    fontWeight: '600',
+    color: '#333',
+  },
+  recurringHint: {
+    color: '#999',
+    marginTop: 2,
+  },
+  submitSection: {
+    marginHorizontal: 16,
+    marginTop: 20,
+  },
+  submitButton: {
+    borderRadius: 10,
   },
 });
