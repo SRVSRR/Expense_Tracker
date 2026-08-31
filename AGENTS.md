@@ -127,7 +127,9 @@ the visual design.
         forecast.py               GET /forecast/cashflow, /runway, /anomalies
         budget.py                 GET /budget/recommendations, /category-analysis
         recurring.py              CRUD /recurring + GET /recurring/upcoming
-      /services                   (empty — logic is in routes for now)
+        categorize.py             POST /categorize/suggest, /categorize/corrections
+      /services
+        categorize.py             Keyword-to-category mapping + suggest function
       /utils
         __init__.py               JWT creation, password hashing, get_current_user dependency
     /migrations                   (empty — using create_all, not Alembic yet)
@@ -147,6 +149,7 @@ the visual design.
         forecast.ts               cashflow, runway, anomalies
         budget.ts                 recommendations, category-analysis
         recurring.ts              CRUD recurring rules + upcoming
+        categorize.ts             suggest, logCorrection
       /store
         authStore.ts              Token persistence, login/logout/register
         accountStore.ts           Accounts state
@@ -243,17 +246,17 @@ Completed:
 Definition of done: ✅ App shows forward-looking balance projection, runway
 estimate, and anomaly detection based on simple averages.
 
-### Phase 4: Rule-based categorization — NOT DONE
+### Phase 4: Rule-based categorization ✅ DONE
 
-The backend currently accepts a raw `category` string from the client. No
-auto-suggestion or keyword matching is implemented yet.
+Completed:
+- Keyword-matching function: maps merchant/description substrings to 14 categories.
+- Backend POST /api/categorize/suggest returns suggested category + confidence level.
+- Frontend: debounced auto-suggest chip appears after 3 chars typed in description/merchant.
+- User can accept (checkmark) or dismiss (X) the suggestion.
+- Corrections logged to correction_logs table when user overrides suggestion.
+- POST /api/categorize/corrections stores: description, merchant, suggested, corrected.
 
-Tasks remaining:
-1. Keyword-matching function: map merchant/description substrings to categories.
-2. Apply automatically on transaction creation, let user override.
-3. Log corrections for future ML training.
-
-Definition of done: NOT YET.
+Definition of done: ✅
 
 ### Phase 5: ML-based categorization (LightGBM) — NOT DONE
 
@@ -312,13 +315,12 @@ Deferred until Phases 1–9 are stable with real user data.
 
 ## What to do next (priority order)
 
-1. **Phase 4: Rule-based categorization** — Add keyword matching for auto-categorizing transactions on creation.
-2. **Default category seeding** — Seed common categories on user signup.
-3. **Offline mobile cache** — expo-sqlite integration for offline transaction entry.
-4. **Phase 5: ML categorization** — Once Phase 4 has correction data, train LightGBM classifier.
-5. **Alembic migrations** — Replace `create_all` with proper migration workflow.
-6. **Prediction caching** — Write scheduled predictions to `predictions` table.
-7. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
+1. **Default category seeding** — Seed common categories on user signup.
+2. **Offline mobile cache** — expo-sqlite integration for offline transaction entry.
+3. **Phase 5: ML categorization** — Train LightGBM classifier on correction data from Phase 4.
+4. **Alembic migrations** — Replace `create_all` with proper migration workflow.
+5. **Prediction caching** — Write scheduled predictions to `predictions` table.
+6. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
 
 ## Conventions the agent must follow throughout
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
 import {
   TextInput,
@@ -18,6 +18,7 @@ import { useTransactionStore } from '../../store/transactionStore';
 import { useAccountStore } from '../../store/accountStore';
 import { useCategoryStore } from '../../store/categoryStore';
 import { useRecurringStore } from '../../store/recurringStore';
+import { categorizeApi, SuggestResponse } from '../../api/categorize';
 
 const TAB_BAR_HEIGHT = 52;
 
@@ -46,6 +47,11 @@ export default function AddTransactionScreen({ navigation }: any) {
   const [frequencyMenuVisible, setFrequencyMenuVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Auto-suggest state
+  const [suggestion, setSuggestion] = useState<SuggestResponse | null>(null);
+  const [suggestionAccepted, setSuggestionAccepted] = useState(false);
+  const suggestTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const { createTransaction } = useTransactionStore();
   const { accounts, fetchAccounts } = useAccountStore();
   const { categories, fetchCategories, getCategoriesByType } = useCategoryStore();
@@ -54,11 +60,51 @@ export default function AddTransactionScreen({ navigation }: any) {
   useEffect(() => {
     fetchAccounts();
     fetchCategories();
-    // Default next date to one period from now
     const d = new Date();
     d.setMonth(d.getMonth() + 1);
     setNextDate(d.toISOString().split('T')[0]);
   }, []);
+
+  // Debounced auto-suggest
+  const fetchSuggestion = useCallback(async (desc: string, mer: string) => {
+    if (desc.length < 3) {
+      setSuggestion(null);
+      return;
+    }
+    try {
+      const result = await categorizeApi.suggest(desc, mer || undefined);
+      setSuggestion(result);
+      setSuggestionAccepted(false);
+    } catch {}
+  }, []);
+
+  const handleDescriptionChange = (text: string) => {
+    setDescription(text);
+    if (suggestTimeout.current) clearTimeout(suggestTimeout.current);
+    suggestTimeout.current = setTimeout(() => {
+      fetchSuggestion(text, merchant);
+    }, 400);
+  };
+
+  const handleMerchantChange = (text: string) => {
+    setMerchant(text);
+    if (suggestTimeout.current) clearTimeout(suggestTimeout.current);
+    suggestTimeout.current = setTimeout(() => {
+      fetchSuggestion(description, text);
+    }, 400);
+  };
+
+  const acceptSuggestion = () => {
+    if (suggestion?.suggested_category) {
+      setSelectedCategory(suggestion.suggested_category);
+      setSuggestionAccepted(true);
+    }
+  };
+
+  const dismissSuggestion = () => {
+    setSuggestion(null);
+    setSuggestionAccepted(true);
+  };
 
   const filteredCategories = getCategoriesByType(type);
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
@@ -68,6 +114,16 @@ export default function AddTransactionScreen({ navigation }: any) {
     if (!amount || !description || !selectedCategory || !selectedAccountId) {
       Alert.alert('Missing Fields', 'Please fill in all required fields.');
       return;
+    }
+
+    // Log correction if user overrode the suggestion
+    if (suggestion?.suggested_category && suggestion.suggested_category !== selectedCategory) {
+      categorizeApi.logCorrection({
+        description,
+        merchant: merchant || undefined,
+        suggested_category: suggestion.suggested_category,
+        corrected_category: selectedCategory,
+      }).catch(() => {});
     }
 
     setIsLoading(true);
@@ -83,21 +139,13 @@ export default function AddTransactionScreen({ navigation }: any) {
         is_recurring: isRecurring ? 1 : 0,
       });
 
-      // If recurring, create the recurring rule
       if (isRecurring && nextDate) {
         const patternMap: Record<string, string> = {
-          weekly: 'weekly',
-          biweekly: 'weekly',
-          monthly: 'monthly',
-          quarterly: 'monthly',
-          yearly: 'yearly',
+          weekly: 'weekly', biweekly: 'weekly', monthly: 'monthly',
+          quarterly: 'monthly', yearly: 'yearly',
         };
         const freqMap: Record<string, number> = {
-          weekly: 1,
-          biweekly: 2,
-          monthly: 1,
-          quarterly: 3,
-          yearly: 1,
+          weekly: 1, biweekly: 2, monthly: 1, quarterly: 3, yearly: 1,
         };
 
         await createRule({
@@ -168,14 +216,14 @@ export default function AddTransactionScreen({ navigation }: any) {
           <TextInput
             label="Description *"
             value={description}
-            onChangeText={setDescription}
+            onChangeText={handleDescriptionChange}
             mode="outlined"
             style={styles.input}
           />
           <TextInput
             label="Merchant (optional)"
             value={merchant}
-            onChangeText={setMerchant}
+            onChangeText={handleMerchantChange}
             mode="outlined"
             style={styles.input}
           />
@@ -189,6 +237,36 @@ export default function AddTransactionScreen({ navigation }: any) {
           />
         </View>
       </Surface>
+
+      {/* Auto-suggest chip */}
+      {suggestion?.suggested_category && !suggestionAccepted && (
+        <Surface style={styles.suggestCard} elevation={0}>
+          <View style={styles.suggestRow}>
+            <View style={styles.suggestLeft}>
+              <Icon source="tag" size={16} color={Colors.tertiary} />
+              <Text variant="bodySmall" style={styles.suggestLabel}>
+                Suggested:
+              </Text>
+              <Text variant="bodyMedium" style={styles.suggestCategory}>
+                {suggestion.suggested_category}
+              </Text>
+              <View style={[styles.confBadge, { backgroundColor: suggestion.confidence === 'high' ? Colors.incomeSurface : Colors.warningSurface }]}>
+                <Text variant="bodySmall" style={[styles.confText, { color: suggestion.confidence === 'high' ? Colors.income : Colors.warning }]}>
+                  {suggestion.confidence}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.suggestActions}>
+              <TouchableOpacity onPress={acceptSuggestion} style={styles.suggestBtn}>
+                <Icon source="check" size={16} color={Colors.income} />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={dismissSuggestion} style={styles.suggestBtn}>
+                <Icon source="close" size={16} color={Colors.expense} />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Surface>
+      )}
 
       {/* Account & Category */}
       <Surface style={styles.card} elevation={0}>
@@ -378,114 +456,45 @@ export default function AddTransactionScreen({ navigation }: any) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  content: {
-    paddingBottom: 30,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 16,
-    backgroundColor: Colors.primary,
-  },
-  title: {
-    color: '#fff',
-    fontWeight: '700',
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
+  content: { paddingBottom: 30 },
+  header: { paddingHorizontal: 20, paddingBottom: 16, backgroundColor: Colors.primary },
+  title: { color: '#fff', fontWeight: '700' },
   card: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: Colors.surfaceCard,
+    marginHorizontal: 16, marginTop: 12, padding: 16,
+    borderRadius: 12, backgroundColor: Colors.surfaceCard,
   },
-  sectionLabel: {
-    color: Colors.textTertiary,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  fieldLabel: {
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
+  sectionLabel: { color: Colors.textTertiary, fontWeight: '600', letterSpacing: 0.5, marginBottom: 12 },
+  fieldLabel: { color: Colors.textSecondary, fontWeight: '600', marginBottom: 6 },
   amountSection: {},
-  amountInput: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+  amountInput: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  dollarSign: { color: Colors.textPrimary, fontWeight: '700', marginRight: 4 },
+  amountField: { flex: 1, backgroundColor: 'transparent', fontSize: 32, fontWeight: '700', color: Colors.textPrimary },
+  divider: { marginBottom: 12, backgroundColor: Colors.divider },
+  input: { marginBottom: 12, backgroundColor: Colors.surfaceElevated },
+  selector: { borderWidth: 1, borderColor: Colors.border, borderRadius: 8, padding: 14, backgroundColor: Colors.surfaceElevated },
+  selectorContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  selectorLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  selectorText: { color: Colors.textPrimary },
+  selectorPlaceholder: { color: Colors.textTertiary },
+  suggestCard: {
+    marginHorizontal: 16, marginTop: 10, padding: 12,
+    borderRadius: 10, backgroundColor: Colors.tertiarySurface,
+    borderWidth: 1, borderColor: Colors.tertiary,
   },
-  dollarSign: {
-    color: Colors.textPrimary,
-    fontWeight: '700',
-    marginRight: 4,
-  },
-  amountField: {
-    flex: 1,
-    backgroundColor: 'transparent',
-    fontSize: 32,
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  divider: {
-    marginBottom: 12,
-    backgroundColor: Colors.divider,
-  },
-  input: {
-    marginBottom: 12,
-    backgroundColor: Colors.surfaceElevated,
-  },
-  selector: {
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 8,
-    padding: 14,
-    backgroundColor: Colors.surfaceElevated,
-  },
-  selectorContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  selectorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  selectorText: {
-    color: Colors.textPrimary,
-  },
-  selectorPlaceholder: {
-    color: Colors.textTertiary,
-  },
-  recurringToggle: {
-    paddingVertical: 4,
-  },
-  recurringRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  recurringLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  recurringTitle: {
-    fontWeight: '600',
-    color: Colors.textPrimary,
-  },
-  recurringHint: {
-    color: Colors.textTertiary,
-    marginTop: 2,
-  },
-  submitSection: {
-    marginHorizontal: 16,
-    marginTop: 20,
-  },
-  submitButton: {
-    borderRadius: 10,
-  },
+  suggestRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  suggestLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 },
+  suggestLabel: { color: Colors.textSecondary },
+  suggestCategory: { fontWeight: '700', color: Colors.tertiary },
+  confBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 4 },
+  confText: { fontWeight: '600', fontSize: 10 },
+  suggestActions: { flexDirection: 'row', gap: 8 },
+  suggestBtn: { padding: 6 },
+  recurringToggle: { paddingVertical: 4 },
+  recurringRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  recurringLeft: { flexDirection: 'row', alignItems: 'center' },
+  recurringTitle: { fontWeight: '600', color: Colors.textPrimary },
+  recurringHint: { color: Colors.textTertiary, marginTop: 2 },
+  submitSection: { marginHorizontal: 16, marginTop: 20 },
+  submitButton: { borderRadius: 10 },
 });

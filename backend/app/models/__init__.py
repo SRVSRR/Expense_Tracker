@@ -105,3 +105,15 @@ class Prediction(Base):
     data = Column(String)  # JSON string with predictions
     generated_at = Column(DateTime, default=datetime.utcnow)
     valid_until = Column(DateTime)
+
+
+class CorrectionLog(Base):
+    __tablename__ = "correction_logs"
+
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), index=True)
+    description = Column(String)
+    merchant = Column(String, nullable=True)
+    suggested_category = Column(String)
+    corrected_category = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
