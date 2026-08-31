@@ -64,7 +64,7 @@ export default function LoginScreen({ navigation }: any) {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            left={<TextInput.Affix text="\u2709" />}
+            left={<TextInput.Affix text="\u25AB" />}
             style={styles.input}
           />
           <TextInput
@@ -73,7 +73,7 @@ export default function LoginScreen({ navigation }: any) {
             onChangeText={setPassword}
             mode="outlined"
             secureTextEntry={!showPassword}
-            left={<TextInput.Affix text="\u26BF" />}
+            left={<TextInput.Affix text="\u25A1" />}
             right={
               <TextInput.Icon
                 icon={() => (
