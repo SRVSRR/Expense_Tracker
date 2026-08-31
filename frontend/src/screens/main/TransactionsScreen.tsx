@@ -11,7 +11,7 @@ const TAB_BAR_HEIGHT = 52;
 
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
-  const { transactions, isLoading, fetchTransactions, filters, setFilters } = useTransactionStore();
+  const { transactions, isLoading, fetchTransactions, filters, setFilters, isOnline } = useTransactionStore();
   const [typeFilter, setTypeFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -52,6 +52,15 @@ export default function TransactionsScreen() {
           {transactions.length} transaction{transactions.length !== 1 ? 's' : ''} this period
         </Text>
       </View>
+
+      {!isOnline && (
+        <View style={styles.offlineBar}>
+          <Icon source="warning" size={14} color={Colors.warning} />
+          <Text variant="bodySmall" style={styles.offlineText}>
+            Offline — showing local transactions
+          </Text>
+        </View>
+      )}
 
       <SegmentedButtons
         value={typeFilter}
@@ -143,6 +152,22 @@ const styles = StyleSheet.create({
   filter: {
     marginHorizontal: 16,
     marginTop: 16,
+  },
+  offlineBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.warningSurface,
+  },
+  offlineText: {
+    color: Colors.warning,
+    fontWeight: '500',
   },
   summary: {
     flexDirection: 'row',

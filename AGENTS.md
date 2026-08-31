@@ -151,6 +151,14 @@ the visual design.
         budget.ts                 recommendations, category-analysis
         recurring.ts              CRUD recurring rules + upcoming
         categorize.ts             suggest, logCorrection
+      /db
+        localDb.ts                expo-sqlite helpers (local-first transaction storage)
+      /services
+        syncService.ts            Background sync: push pending→remote, pull remote→local
+      /hooks
+        useNetworkSync.ts         Network status detection + auto-sync on reconnect
+      /utils
+        uuid.ts                   UUID generation for local records
       /store
         authStore.ts              Token persistence, login/logout/register
         accountStore.ts           Accounts state
@@ -217,8 +225,8 @@ Completed:
 7. Zustand stores for auth, accounts, transactions, categories.
 
 Not done yet:
-- Default category seeding on signup ✅ DONE.
-- Offline SQLite cache for mobile (deferred — requires expo-sqlite integration).
+- Default category seeding ✅ DONE.
+- Offline SQLite cache for mobile ✅ DONE (expo-sqlite, local-first writes, background sync).
 
 Definition of done: ✅ A user can sign up, create an account, add income and
 expense transactions, and see a running balance.
@@ -316,11 +324,10 @@ Deferred until Phases 1–9 are stable with real user data.
 
 ## What to do next (priority order)
 
-1. **Offline mobile cache** — expo-sqlite integration for offline transaction entry.
-2. **Phase 5: ML categorization** — Train LightGBM classifier on correction data from Phase 4.
-3. **Alembic migrations** — Replace `create_all` with proper migration workflow.
-4. **Prediction caching** — Write scheduled predictions to `predictions` table.
-5. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
+1. **Phase 5: ML categorization** — Train LightGBM classifier on correction data from Phase 4.
+2. **Alembic migrations** — Replace `create_all` with proper migration workflow.
+3. **Prediction caching** — Write scheduled predictions to `predictions` table.
+4. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
 
 ## Conventions the agent must follow throughout
 

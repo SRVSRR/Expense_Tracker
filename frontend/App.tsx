@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { PaperProvider, MD3LightTheme } from 'react-native-paper';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/store/authStore';
+import { useNetworkSync } from './src/hooks/useNetworkSync';
 
 const theme = {
   ...MD3LightTheme,
@@ -18,6 +19,7 @@ const theme = {
 
 export default function App() {
   const loadToken = useAuthStore((state) => state.loadToken);
+  useNetworkSync();
 
   useEffect(() => {
     loadToken();

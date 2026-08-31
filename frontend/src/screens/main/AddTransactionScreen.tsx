@@ -52,7 +52,7 @@ export default function AddTransactionScreen({ navigation }: any) {
   const [suggestionAccepted, setSuggestionAccepted] = useState(false);
   const suggestTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { createTransaction } = useTransactionStore();
+  const { createTransaction, isOnline } = useTransactionStore();
   const { accounts, fetchAccounts } = useAccountStore();
   const { categories, fetchCategories, getCategoriesByType } = useCategoryStore();
   const { createRule } = useRecurringStore();
@@ -157,9 +157,13 @@ export default function AddTransactionScreen({ navigation }: any) {
         });
       }
 
-      Alert.alert('Success', 'Transaction added!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      Alert.alert(
+        isOnline ? 'Success' : 'Saved Offline',
+        isOnline ? 'Transaction added!' : 'Transaction saved locally. It will sync when you\'re back online.',
+        [
+          { text: 'OK', onPress: () => navigation.goBack() },
+        ]
+      );
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.detail || 'Failed to add transaction');
     } finally {

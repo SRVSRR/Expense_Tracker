@@ -19,7 +19,7 @@ export default function DashboardScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const { accounts, fetchAccounts } = useAccountStore();
-  const { transactions, fetchTransactions } = useTransactionStore();
+  const { transactions, fetchTransactions, isOnline } = useTransactionStore();
   const { upcoming, fetchUpcoming } = useRecurringStore();
   const [runway, setRunway] = useState<RunwayData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -81,6 +81,15 @@ export default function DashboardScreen({ navigation }: any) {
             })}
           </Text>
         </View>
+
+        {!isOnline && (
+          <View style={styles.offlineBar}>
+            <Icon source="warning" size={14} color={Colors.warning} />
+            <Text variant="bodySmall" style={styles.offlineText}>
+              Offline — transactions will sync when connected
+            </Text>
+          </View>
+        )}
 
         <BalanceSummary accounts={accounts} />
 
@@ -381,6 +390,22 @@ const styles = StyleSheet.create({
   emptyHint: {
     color: Colors.textTertiary,
     marginTop: 4,
+  },
+  offlineBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: Colors.warningSurface,
+  },
+  offlineText: {
+    color: Colors.warning,
+    fontWeight: '500',
   },
   fab: {
     position: 'absolute',
