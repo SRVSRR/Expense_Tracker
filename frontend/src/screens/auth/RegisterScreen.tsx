@@ -45,21 +45,18 @@ export default function RegisterScreen({ navigation }: any) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 40 }]}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 60 }]}>
         {/* Brand Header */}
         <View style={styles.brand}>
           <View style={styles.logoBg}>
-            <Icon source="wallet" size={36} color="#fff" />
+            <Icon source="wallet" size={32} color="#fff" />
           </View>
-          <Text variant="headlineMedium" style={styles.title}>
-            Get Started
-          </Text>
-          <Text variant="bodyMedium" style={styles.subtitle}>
-            Create your account to begin tracking
+          <Text variant="headlineSmall" style={styles.title}>
+            Create Account
           </Text>
         </View>
 
-        {/* Form Card */}
+        {/* Form */}
         <Surface style={styles.card} elevation={0}>
           <TextInput
             label="Email"
@@ -69,7 +66,6 @@ export default function RegisterScreen({ navigation }: any) {
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
-            left={<TextInput.Affix text="\u25AB" />}
             style={styles.input}
           />
           <TextInput
@@ -78,7 +74,6 @@ export default function RegisterScreen({ navigation }: any) {
             onChangeText={setPassword}
             mode="outlined"
             secureTextEntry={!showPassword}
-            left={<TextInput.Affix text="\u25A1" />}
             right={
               <TextInput.Icon
                 icon={() => (
@@ -95,7 +90,6 @@ export default function RegisterScreen({ navigation }: any) {
             onChangeText={setConfirmPassword}
             mode="outlined"
             secureTextEntry={!showPassword}
-            left={<TextInput.Affix text="\u25A1" />}
             style={styles.input}
           />
 
@@ -125,7 +119,7 @@ export default function RegisterScreen({ navigation }: any) {
             mode="text"
             onPress={() => navigation.navigate('Login')}
             style={styles.linkButton}
-            textColor={Colors.primary}
+            textColor={Colors.tertiary}
           >
             Already have an account? Log in
           </Button>
@@ -143,16 +137,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
   },
   brand: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 32,
   },
   logoBg: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
@@ -161,10 +155,6 @@ const styles = StyleSheet.create({
   title: {
     fontWeight: '700',
     color: Colors.textPrimary,
-    marginBottom: 4,
-  },
-  subtitle: {
-    color: Colors.textSecondary,
   },
   card: {
     padding: 24,

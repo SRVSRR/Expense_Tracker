@@ -1,19 +1,26 @@
 import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { PaperProvider, MD3LightTheme } from 'react-native-paper';
+import { PaperProvider, MD3DarkTheme } from 'react-native-paper';
 import AppNavigator from './src/navigation/AppNavigator';
 import { useAuthStore } from './src/store/authStore';
 import { useNetworkSync } from './src/hooks/useNetworkSync';
+import { Colors } from './src/theme/colors';
 
 const theme = {
-  ...MD3LightTheme,
+  ...MD3DarkTheme,
   colors: {
-    ...MD3LightTheme.colors,
-    primary: '#2196F3',
-    secondary: '#4CAF50',
-    error: '#F44336',
-    background: '#F5F5F5',
-    surface: '#FFFFFF',
+    ...MD3DarkTheme.colors,
+    primary: Colors.primary,
+    secondary: Colors.tertiary,
+    error: Colors.error,
+    background: Colors.background,
+    surface: Colors.surface,
+    surfaceVariant: Colors.surfaceCard,
+    onBackground: Colors.textPrimary,
+    onSurface: Colors.textPrimary,
+    onSurfaceVariant: Colors.textSecondary,
+    outline: Colors.border,
+    outlineVariant: Colors.border,
   },
 };
 

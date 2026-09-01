@@ -182,7 +182,7 @@ export default function ForecastScreen() {
                         ? Colors.expense
                         : anomaly.severity === 'medium'
                         ? Colors.warning
-                        : '#FFC107',
+                        : Colors.primaryLight,
                   },
                 ]}
               />
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   },
   statNeg: {
     fontWeight: '700',
-    color: '#FFCDD2',
+    color: Colors.expense,
     marginTop: 2,
   },
   cardHeader: {

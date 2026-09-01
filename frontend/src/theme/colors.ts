@@ -16,7 +16,7 @@ export const Colors = {
 
   textPrimary: '#FFFFFF',
   textSecondary: '#A0A0A0',
-  textTertiary: '#666666',
+  textTertiary: '#888888',
   textDisabled: '#444444',
 
   border: '#2A2A2A',
