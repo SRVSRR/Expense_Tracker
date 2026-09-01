@@ -137,7 +137,8 @@ the visual design.
         saved_models/             Persisted models (auto-created on train)
       /utils
         __init__.py               JWT creation, password hashing, get_current_user dependency
-    /migrations                   (empty — using create_all, not Alembic yet)
+    /migrations                   Alembic migration config + versions
+    /alembic.ini                  Alembic configuration
     /tests                        (empty)
   /frontend                       React Native (Expo) app
     App.tsx                       Entry point with PaperProvider
@@ -333,10 +334,9 @@ Deferred until Phases 1–9 are stable with real user data.
 
 ## What to do next (priority order)
 
-1. **Alembic migrations** — Replace `create_all` with proper migration workflow.
-2. **Prediction caching** — Write scheduled predictions to `predictions` table.
-3. **Phase 6 upgrade: ML cashflow forecasting** — LightGBM regressors for income/expense.
-4. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
+1. **Prediction caching** — Write scheduled predictions to `predictions` table.
+2. **Phase 6 upgrade: ML cashflow forecasting** — LightGBM regressors for income/expense.
+3. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
 
 ## Conventions the agent must follow throughout
 

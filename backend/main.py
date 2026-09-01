@@ -1,19 +1,23 @@
 from dotenv import load_dotenv
 load_dotenv()
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from alembic.config import Config
+from alembic import command
 
 from app.routes import transactions, accounts, categories, forecast, budget, auth, recurring, categorize
-from app.db.database import init_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    print("Starting up...")
-    await init_db()
+    # Startup: run Alembic migrations instead of create_all
+    print("Starting up — running database migrations...")
+    alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
+    command.upgrade(alembic_cfg, "head")
+    print("Migrations complete.")
     yield
     # Shutdown
     print("Shutting down...")
