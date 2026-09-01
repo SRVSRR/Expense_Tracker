@@ -93,11 +93,11 @@ class Transaction(TransactionBase):
 
 
 class UserBase(BaseModel):
-    email: str
+    email: str = Field(min_length=1)
 
 
 class UserCreate(UserBase):
-    password: str
+    password: str = Field(min_length=6)
 
 
 class User(UserBase):
