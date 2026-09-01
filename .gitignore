@@ -11,6 +11,7 @@ backend/.env.local
 backend/dist/
 backend/build/
 backend/expense_tracker.db
+backend/app/ml/saved_models/
 
 # Frontend (React Native/Expo)
 frontend/node_modules/

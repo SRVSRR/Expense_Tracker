@@ -127,10 +127,14 @@ the visual design.
         forecast.py               GET /forecast/cashflow, /runway, /anomalies
         budget.py                 GET /budget/recommendations, /category-analysis
         recurring.py              CRUD /recurring + GET /recurring/upcoming
-        categorize.py             POST /categorize/suggest, /categorize/corrections
+        categorize.py             POST /categorize/suggest, /categorize/corrections, /categorize/train
       /services
         categorize.py             Keyword-to-category mapping + suggest function
         seed.py                   Default category seeding on signup
+      /ml
+        __init__.py
+        categorizer.py            LightGBM classifier with TF-IDF features
+        saved_models/             Persisted models (auto-created on train)
       /utils
         __init__.py               JWT creation, password hashing, get_current_user dependency
     /migrations                   (empty — using create_all, not Alembic yet)
@@ -267,17 +271,22 @@ Completed:
 
 Definition of done: ✅
 
-### Phase 5: ML-based categorization (LightGBM) — NOT DONE
+### Phase 5: ML-based categorization (LightGBM) ✅ DONE
 
-Dependencies installed (lightgbm, scikit-learn, pandas) but no model code exists.
+Completed:
+- `backend/app/ml/categorizer.py`: LightGBM classifier with TF-IDF features.
+- TfidfVectorizer (1-3 gram, 2000 features) on description + merchant text.
+- LightGBM multiclass classifier (14 categories).
+- Model saved/loaded from disk (`backend/app/ml/saved_models/`).
+- Minimum 30 correction samples required to train.
+- Confidence threshold (0.55) — falls back to rules when ML confidence is low.
+- POST /api/categorize/train — trains model on all correction_logs data.
+- GET /api/categorize/model-info — returns training status.
+- Frontend API updated with source field ("ml" / "rules" / "none").
+- Cold-start fallback: rule-based keyword matching until enough data.
 
-Tasks remaining:
-1. `backend/app/ml/categorize.py`: feature pipeline + LightGBM classifier.
-2. Train on logged correction data from Phase 4.
-3. Cold-start fallback to rule-based approach.
-4. Weekly retraining job.
-
-Definition of done: NOT YET.
+Definition of done: ✅ Model trains on correction data, predicts with confidence
+scores, falls back to rules when data is insufficient.
 
 ### Phase 6: Cash flow forecasting model — NAIVE VERSION DONE
 
@@ -324,9 +333,9 @@ Deferred until Phases 1–9 are stable with real user data.
 
 ## What to do next (priority order)
 
-1. **Phase 5: ML categorization** — Train LightGBM classifier on correction data from Phase 4.
-2. **Alembic migrations** — Replace `create_all` with proper migration workflow.
-3. **Prediction caching** — Write scheduled predictions to `predictions` table.
+1. **Alembic migrations** — Replace `create_all` with proper migration workflow.
+2. **Prediction caching** — Write scheduled predictions to `predictions` table.
+3. **Phase 6 upgrade: ML cashflow forecasting** — LightGBM regressors for income/expense.
 4. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres.
 
 ## Conventions the agent must follow throughout
