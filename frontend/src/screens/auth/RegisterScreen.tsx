@@ -34,7 +34,11 @@ export default function RegisterScreen({ navigation }: any) {
     try {
       await register(email, password);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      if (err.message === 'Network Error' || !err.response) {
+        setError('Cannot connect to server. Make sure the backend is running.');
+      } else {
+        setError(err.response?.data?.detail || 'Registration failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }

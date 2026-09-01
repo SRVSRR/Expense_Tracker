@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.db.database import get_db
 from app.models import User
-from app.schemas import UserCreate, User as UserSchema
+from app.schemas import UserCreate, UserLogin, User as UserSchema
 from app.utils import (
     generate_uuid,
     get_password_hash,
@@ -43,7 +43,7 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login")
-async def login(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+async def login(user_data: UserLogin, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == user_data.email))
     user = result.scalar_one_or_none()
     if not user or not verify_password(user_data.password, user.password_hash):

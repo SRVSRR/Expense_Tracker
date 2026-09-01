@@ -25,7 +25,11 @@ export default function LoginScreen({ navigation }: any) {
     try {
       await login(email, password);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      if (err.message === 'Network Error' || !err.response) {
+        setError('Cannot connect to server. Make sure the backend is running.');
+      } else {
+        setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
