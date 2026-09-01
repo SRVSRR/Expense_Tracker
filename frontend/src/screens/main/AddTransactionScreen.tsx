@@ -215,7 +215,6 @@ export default function AddTransactionScreen({ navigation }: any) {
               underlineColor="transparent"
               activeUnderlineColor="transparent"
               textContentType="none"
-              autoComplete="off"
             />
           </View>
           <Divider style={styles.divider} />
@@ -226,7 +225,6 @@ export default function AddTransactionScreen({ navigation }: any) {
             mode="outlined"
             style={styles.input}
             textContentType="none"
-            autoComplete="off"
           />
           <TextInput
             label="Merchant (optional)"
@@ -235,7 +233,6 @@ export default function AddTransactionScreen({ navigation }: any) {
             mode="outlined"
             style={styles.input}
             textContentType="none"
-            autoComplete="off"
           />
           <TextInput
             label="Date *"
@@ -245,7 +242,6 @@ export default function AddTransactionScreen({ navigation }: any) {
             placeholder="YYYY-MM-DD"
             style={styles.input}
             textContentType="none"
-            autoComplete="off"
           />
         </View>
       </Surface>
