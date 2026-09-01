@@ -214,6 +214,8 @@ export default function AddTransactionScreen({ navigation }: any) {
               style={styles.amountField}
               underlineColor="transparent"
               activeUnderlineColor="transparent"
+              textContentType="none"
+              autoComplete="off"
             />
           </View>
           <Divider style={styles.divider} />
@@ -223,6 +225,8 @@ export default function AddTransactionScreen({ navigation }: any) {
             onChangeText={handleDescriptionChange}
             mode="outlined"
             style={styles.input}
+            textContentType="none"
+            autoComplete="off"
           />
           <TextInput
             label="Merchant (optional)"
@@ -230,6 +234,8 @@ export default function AddTransactionScreen({ navigation }: any) {
             onChangeText={handleMerchantChange}
             mode="outlined"
             style={styles.input}
+            textContentType="none"
+            autoComplete="off"
           />
           <TextInput
             label="Date *"
@@ -238,39 +244,43 @@ export default function AddTransactionScreen({ navigation }: any) {
             mode="outlined"
             placeholder="YYYY-MM-DD"
             style={styles.input}
+            textContentType="none"
+            autoComplete="off"
           />
         </View>
       </Surface>
 
       {/* Auto-suggest chip */}
-      {suggestion?.suggested_category && !suggestionAccepted && (
-        <Surface style={styles.suggestCard} elevation={0}>
-          <View style={styles.suggestRow}>
-            <View style={styles.suggestLeft}>
-              <Icon source="tag" size={16} color={Colors.tertiary} />
-              <Text variant="bodySmall" style={styles.suggestLabel}>
-                Suggested:
-              </Text>
-              <Text variant="bodyMedium" style={styles.suggestCategory}>
-                {suggestion.suggested_category}
-              </Text>
-              <View style={[styles.confBadge, { backgroundColor: suggestion.confidence === 'high' ? Colors.incomeSurface : Colors.warningSurface }]}>
-                <Text variant="bodySmall" style={[styles.confText, { color: suggestion.confidence === 'high' ? Colors.income : Colors.warning }]}>
-                  {suggestion.confidence}
+      <View style={styles.suggestContainer}>
+        {suggestion?.suggested_category && !suggestionAccepted ? (
+          <Surface style={styles.suggestCard} elevation={0}>
+            <View style={styles.suggestRow}>
+              <View style={styles.suggestLeft}>
+                <Icon source="tag" size={16} color={Colors.tertiary} />
+                <Text variant="bodySmall" style={styles.suggestLabel}>
+                  Suggested:
                 </Text>
+                <Text variant="bodyMedium" style={styles.suggestCategory}>
+                  {suggestion.suggested_category}
+                </Text>
+                <View style={[styles.confBadge, { backgroundColor: suggestion.confidence === 'high' ? Colors.incomeSurface : Colors.warningSurface }]}>
+                  <Text variant="bodySmall" style={[styles.confText, { color: suggestion.confidence === 'high' ? Colors.income : Colors.warning }]}>
+                    {suggestion.confidence}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.suggestActions}>
+                <TouchableOpacity onPress={acceptSuggestion} style={styles.suggestBtn}>
+                  <Icon source="check" size={16} color={Colors.income} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={dismissSuggestion} style={styles.suggestBtn}>
+                  <Icon source="close" size={16} color={Colors.expense} />
+                </TouchableOpacity>
               </View>
             </View>
-            <View style={styles.suggestActions}>
-              <TouchableOpacity onPress={acceptSuggestion} style={styles.suggestBtn}>
-                <Icon source="check" size={16} color={Colors.income} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={dismissSuggestion} style={styles.suggestBtn}>
-                <Icon source="close" size={16} color={Colors.expense} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Surface>
-      )}
+          </Surface>
+        ) : null}
+      </View>
 
       {/* Account & Category */}
       <Surface style={styles.card} elevation={0}>
@@ -481,8 +491,13 @@ const styles = StyleSheet.create({
   selectorLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   selectorText: { color: Colors.textPrimary },
   selectorPlaceholder: { color: Colors.textTertiary },
+  suggestContainer: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    height: 52,
+  },
   suggestCard: {
-    marginHorizontal: 16, marginTop: 10, padding: 12,
+    padding: 12,
     borderRadius: 10, backgroundColor: Colors.tertiarySurface,
     borderWidth: 1, borderColor: Colors.tertiary,
   },
