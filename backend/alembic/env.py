@@ -3,6 +3,10 @@ import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
+from dotenv import load_dotenv
+
+# Load .env before anything else
+load_dotenv(os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env"))
 
 from alembic import context
 
@@ -22,6 +26,8 @@ if config.config_file_name is not None:
 # Override sqlalchemy.url from DATABASE_URL env var if set
 database_url = os.getenv("DATABASE_URL")
 if database_url:
+    # Alembic runs synchronously — convert async driver to sync
+    database_url = database_url.replace("+aiosqlite", "").replace("+asyncpg", "")
     config.set_main_option("sqlalchemy.url", database_url)
 
 # Import all models so Alembic can detect them for autogenerate

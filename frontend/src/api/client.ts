@@ -10,10 +10,13 @@ const API_BASE_URL = Platform.select({
 
 const client = axios.create({
   baseURL: API_BASE_URL,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+let isLoggingOut = false;
 
 client.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('auth_token');
@@ -26,8 +29,12 @@ client.interceptors.request.use(async (config) => {
 client.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !isLoggingOut) {
+      isLoggingOut = true;
       await SecureStore.deleteItemAsync('auth_token');
+      const { useAuthStore } = await import('../store/authStore');
+      useAuthStore.getState().logout();
+      isLoggingOut = false;
     }
     return Promise.reject(error);
   }

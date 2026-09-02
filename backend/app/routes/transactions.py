@@ -13,6 +13,7 @@ from app.schemas import (
     Transaction as TransactionSchema,
 )
 from app.utils import generate_uuid, get_current_user
+from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
 
@@ -53,6 +54,7 @@ async def create_transaction(
 
     await db.commit()
     await db.refresh(transaction)
+    await invalidate_predictions(db, current_user.id)
     return transaction
 
 
@@ -127,6 +129,7 @@ async def update_transaction(
 
     await db.commit()
     await db.refresh(transaction)
+    await invalidate_predictions(db, current_user.id)
     return transaction
 
 
@@ -148,3 +151,4 @@ async def delete_transaction(
 
     await db.delete(transaction)
     await db.commit()
+    await invalidate_predictions(db, current_user.id)

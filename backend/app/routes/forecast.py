@@ -3,27 +3,22 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime, timedelta
-from typing import Optional
 
 from app.db.database import get_db
 from app.models import Transaction, Account, User
 from app.utils import get_current_user
+from app.services.prediction_cache import get_cached_prediction, store_prediction
 
 router = APIRouter()
 
 
-@router.get("/cashflow")
-async def get_cashflow_forecast(
-    days: int = Query(default=30, ge=7, le=365),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Naive cash flow forecast: rolling 3-month average applied forward."""
+async def _compute_cashflow(db: AsyncSession, user_id: str, days: int) -> dict:
+    """Compute naive cashflow forecast (rolling 3-month average)."""
     three_months_ago = datetime.utcnow() - timedelta(days=90)
 
     result = await db.execute(
         select(Transaction).where(
-            Transaction.user_id == current_user.id,
+            Transaction.user_id == user_id,
             Transaction.date >= three_months_ago,
         )
     )
@@ -42,13 +37,13 @@ async def get_cashflow_forecast(
     avg_daily_income = sum(daily_income.values()) / num_days if daily_income else 0
     avg_daily_expense = sum(daily_expense.values()) / num_days if daily_expense else 0
 
-    forecast = []
     today = datetime.utcnow().date()
     account_result = await db.execute(
-        select(func.sum(Account.current_balance)).where(Account.user_id == current_user.id)
+        select(func.sum(Account.current_balance)).where(Account.user_id == user_id)
     )
     running_balance = account_result.scalar() or 0.0
 
+    forecast = []
     for i in range(1, days + 1):
         forecast_date = today + timedelta(days=i)
         running_balance += avg_daily_income - avg_daily_expense
@@ -67,18 +62,13 @@ async def get_cashflow_forecast(
     }
 
 
-@router.get("/runway")
-async def get_runway_forecast(
-    threshold: float = Query(default=0.0, description="Balance threshold"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Predict days until balance hits threshold based on current spending trend."""
+async def _compute_runway(db: AsyncSession, user_id: str, threshold: float) -> dict:
+    """Compute naive runway prediction."""
     three_months_ago = datetime.utcnow() - timedelta(days=90)
 
     result = await db.execute(
         select(Transaction).where(
-            Transaction.user_id == current_user.id,
+            Transaction.user_id == user_id,
             Transaction.date >= three_months_ago,
         )
     )
@@ -99,12 +89,12 @@ async def get_runway_forecast(
     net_daily_burn = avg_daily_expense - avg_daily_income
 
     account_result = await db.execute(
-        select(func.sum(Account.current_balance)).where(Account.user_id == current_user.id)
+        select(func.sum(Account.current_balance)).where(Account.user_id == user_id)
     )
     current_balance = account_result.scalar() or 0.0
 
     if net_daily_burn <= 0:
-        days_remaining = None  # Not spending more than earning
+        days_remaining = None
     else:
         days_remaining = max(0, int((current_balance - threshold) / net_daily_burn))
 
@@ -118,14 +108,10 @@ async def get_runway_forecast(
     }
 
 
-@router.get("/anomalies")
-async def detect_anomalies(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Simple anomaly detection: flag transactions > 2x category average (IQR method)."""
+async def _compute_anomalies(db: AsyncSession, user_id: str) -> dict:
+    """Compute naive anomaly detection (2x category average)."""
     result = await db.execute(
-        select(Transaction).where(Transaction.user_id == current_user.id)
+        select(Transaction).where(Transaction.user_id == user_id)
     )
     transactions = result.scalars().all()
 
@@ -161,3 +147,50 @@ async def detect_anomalies(
         "anomalies_found": len(anomalies),
         "anomalies": anomalies,
     }
+
+
+@router.get("/cashflow")
+async def get_cashflow_forecast(
+    days: int = Query(default=30, ge=7, le=365),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Cash flow forecast — cached in predictions table (24h TTL)."""
+    cached = await get_cached_prediction(db, current_user.id, "cashflow")
+    if cached and cached.get("period_days") == days:
+        return cached
+
+    data = await _compute_cashflow(db, current_user.id, days)
+    await store_prediction(db, current_user.id, "cashflow", data)
+    return data
+
+
+@router.get("/runway")
+async def get_runway_forecast(
+    threshold: float = Query(default=0.0, description="Balance threshold"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Runway prediction — cached in predictions table (12h TTL)."""
+    cached = await get_cached_prediction(db, current_user.id, "runway")
+    if cached and cached.get("threshold") == threshold:
+        return cached
+
+    data = await _compute_runway(db, current_user.id, threshold)
+    await store_prediction(db, current_user.id, "runway", data)
+    return data
+
+
+@router.get("/anomalies")
+async def detect_anomalies(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Anomaly detection — cached in predictions table (24h TTL)."""
+    cached = await get_cached_prediction(db, current_user.id, "anomaly")
+    if cached:
+        return cached
+
+    data = await _compute_anomalies(db, current_user.id)
+    await store_prediction(db, current_user.id, "anomaly", data)
+    return data

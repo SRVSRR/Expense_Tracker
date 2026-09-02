@@ -2,13 +2,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
-from fastapi import FastAPI
+import logging
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from alembic.config import Config
 from alembic import command
 
 from app.routes import transactions, accounts, categories, forecast, budget, auth, recurring, categorize
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("expense_tracker")
 
 
 @asynccontextmanager
@@ -38,6 +42,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f">>> {request.method} {request.url.path}")
+    response = await call_next(request)
+    logger.info(f"<<< {response.status_code}")
+    return response
 
 # Routes
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, Alert, TouchableOpacity } from 'react-native';
-import { Text, FAB, Portal, Dialog, TextInput, Button, Surface } from 'react-native-paper';
+import { Text, FAB, Surface } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from '../../components/Icon';
 import { Colors } from '../../theme/colors';
@@ -8,43 +8,26 @@ import { useAccountStore } from '../../store/accountStore';
 
 const TAB_BAR_HEIGHT = 52;
 
-export default function AccountsScreen() {
+export default function AccountsScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
-  const { accounts, isLoading, fetchAccounts, createAccount, deleteAccount } = useAccountStore();
+  const { accounts, isLoading, fetchAccounts, deleteAccount } = useAccountStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [dialogVisible, setDialogVisible] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newCurrency, setNewCurrency] = useState('USD');
-  const [newBalance, setNewBalance] = useState('');
 
   useEffect(() => {
     fetchAccounts();
   }, []);
 
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      fetchAccounts();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchAccounts();
     setRefreshing(false);
-  };
-
-  const handleAdd = async () => {
-    if (!newName || !newBalance) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-    try {
-      await createAccount({
-        name: newName,
-        currency: newCurrency,
-        initial_balance: parseFloat(newBalance),
-      });
-      setDialogVisible(false);
-      setNewName('');
-      setNewCurrency('USD');
-      setNewBalance('');
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to create account');
-    }
   };
 
   const handleDelete = (id: string, name: string) => {
@@ -132,49 +115,9 @@ export default function AccountsScreen() {
         icon="plus-circle"
         label="New Account"
         style={[styles.fab, { bottom: insets.bottom + TAB_BAR_HEIGHT + 16 }]}
-        onPress={() => setDialogVisible(true)}
+        onPress={() => navigation.navigate('AddAccount')}
         color={Colors.background}
       />
-
-      <Portal>
-        <Dialog visible={dialogVisible} onDismiss={() => setDialogVisible(false)} style={styles.dialog}>
-          <Dialog.Title style={styles.dialogTitle}>New Account</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              label="Account Name"
-              value={newName}
-              onChangeText={setNewName}
-              mode="outlined"
-              style={styles.dialogInput}
-            />
-            <TextInput
-              label="Currency"
-              value={newCurrency}
-              onChangeText={setNewCurrency}
-              mode="outlined"
-              style={styles.dialogInput}
-              disabled
-            />
-            <TextInput
-              label="Initial Balance"
-              value={newBalance}
-              onChangeText={setNewBalance}
-              mode="outlined"
-              keyboardType="decimal-pad"
-              left={<TextInput.Affix text="$" />}
-              style={styles.dialogInput}
-            />
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setDialogVisible(false)} textColor={Colors.textSecondary}>
-              Cancel
-            </Button>
-            <Button onPress={handleAdd} buttonColor="#fff" textColor="#000">
-              Create
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
     </View>
   );
 }
@@ -262,16 +205,5 @@ const styles = StyleSheet.create({
     right: 16,
     backgroundColor: '#fff',
     borderRadius: 14,
-  },
-  dialog: {
-    backgroundColor: Colors.surfaceCard,
-    borderRadius: 16,
-  },
-  dialogTitle: {
-    fontWeight: '700',
-    color: Colors.textPrimary,
-  },
-  dialogInput: {
-    marginBottom: 12,
   },
 });

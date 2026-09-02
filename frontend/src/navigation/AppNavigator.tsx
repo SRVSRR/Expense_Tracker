@@ -13,6 +13,7 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 import DashboardScreen from '../screens/main/DashboardScreen';
 import TransactionsScreen from '../screens/main/TransactionsScreen';
 import AddTransactionScreen from '../screens/main/AddTransactionScreen';
+import AddAccountScreen from '../screens/main/AddAccountScreen';
 import AccountsScreen from '../screens/main/AccountsScreen';
 import ForecastScreen from '../screens/main/ForecastScreen';
 import BudgetScreen from '../screens/main/BudgetScreen';
@@ -82,6 +83,11 @@ const RootStack = () => {
           <Stack.Screen
             name="AddTransaction"
             component={AddTransactionScreen}
+            options={{ presentation: 'modal' }}
+          />
+          <Stack.Screen
+            name="AddAccount"
+            component={AddAccountScreen}
             options={{ presentation: 'modal' }}
           />
         </>

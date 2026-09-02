@@ -7,21 +7,18 @@ from datetime import datetime, timedelta
 from app.db.database import get_db
 from app.models import Transaction, Account, User
 from app.utils import get_current_user
+from app.services.prediction_cache import get_cached_prediction, store_prediction
 
 router = APIRouter()
 
 
-@router.get("/recommendations")
-async def get_budget_recommendations(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Rule-based budget recommendations based on historical category spend vs income."""
+async def _compute_recommendations(db: AsyncSession, user_id: str) -> dict:
+    """Compute rule-based budget recommendations."""
     three_months_ago = datetime.utcnow() - timedelta(days=90)
 
     result = await db.execute(
         select(Transaction).where(
-            Transaction.user_id == current_user.id,
+            Transaction.user_id == user_id,
             Transaction.date >= three_months_ago,
         )
     )
@@ -75,17 +72,13 @@ async def get_budget_recommendations(
     }
 
 
-@router.get("/category-analysis")
-async def analyze_category_spending(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Analyze spending by category vs income over the last 3 months."""
+async def _compute_category_analysis(db: AsyncSession, user_id: str) -> dict:
+    """Compute spending analysis by category."""
     three_months_ago = datetime.utcnow() - timedelta(days=90)
 
     result = await db.execute(
         select(Transaction).where(
-            Transaction.user_id == current_user.id,
+            Transaction.user_id == user_id,
             Transaction.date >= three_months_ago,
         )
     )
@@ -128,3 +121,33 @@ async def analyze_category_spending(
         "net_flow": round(total_income - total_expense, 2),
         "categories": sorted(analysis, key=lambda x: x["total_spent"], reverse=True),
     }
+
+
+@router.get("/recommendations")
+async def get_budget_recommendations(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Budget recommendations — cached in predictions table (7-day TTL)."""
+    cached = await get_cached_prediction(db, current_user.id, "budget")
+    if cached:
+        return cached
+
+    data = await _compute_recommendations(db, current_user.id)
+    await store_prediction(db, current_user.id, "budget", data)
+    return data
+
+
+@router.get("/category-analysis")
+async def analyze_category_spending(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Category spending analysis — cached (7-day TTL, same cache key as budget)."""
+    cached = await get_cached_prediction(db, current_user.id, "budget_analysis")
+    if cached:
+        return cached
+
+    data = await _compute_category_analysis(db, current_user.id)
+    await store_prediction(db, current_user.id, "budget_analysis", data, ttl_hours=168)
+    return data

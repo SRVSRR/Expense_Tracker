@@ -10,7 +10,7 @@ DATABASE_URL = os.getenv(
     "postgresql+asyncpg://user:password@localhost/expense_tracker"
 )
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
