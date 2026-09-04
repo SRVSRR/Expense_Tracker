@@ -13,24 +13,12 @@ backend/build/
 backend/expense_tracker.db
 backend/app/ml/saved_models/
 
-# Frontend (React Native/Expo)
-frontend/node_modules/
-frontend/.expo/
-frontend/.expo-shared/
-frontend/dist/
-frontend/build/
-frontend/.env
-frontend/.env.local
-frontend/app.json.bak
-frontend/eas.json
-
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
 # OS
 .DS_Store
@@ -39,7 +27,6 @@ Thumbs.db
 # Logs
 logs/
 *.log
-npm-debug.log*
 
 # Environment
 .env

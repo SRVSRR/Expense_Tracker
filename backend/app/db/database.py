@@ -7,7 +7,7 @@ from app.models import Base
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://user:password@localhost/expense_tracker"
+    "sqlite+aiosqlite:///./expense_tracker.db"
 )
 
 engine = create_async_engine(DATABASE_URL, echo=False)

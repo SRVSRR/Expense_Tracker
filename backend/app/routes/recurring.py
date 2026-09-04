@@ -12,6 +12,7 @@ from app.schemas import (
     RecurringRule as RecurringRuleSchema,
 )
 from app.utils import generate_uuid, get_current_user
+from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
 
@@ -22,6 +23,16 @@ async def create_recurring_rule(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if data.transaction_id:
+        transaction_result = await db.execute(
+            select(Transaction).where(
+                Transaction.id == data.transaction_id,
+                Transaction.user_id == current_user.id,
+            )
+        )
+        if transaction_result.scalar_one_or_none() is None:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+
     rule = RecurringRule(
         id=generate_uuid(),
         user_id=current_user.id,
@@ -34,6 +45,7 @@ async def create_recurring_rule(
     db.add(rule)
     await db.commit()
     await db.refresh(rule)
+    await invalidate_predictions(db, current_user.id)
     return rule
 
 
@@ -147,3 +159,4 @@ async def delete_recurring_rule(
 
     await db.delete(rule)
     await db.commit()
+    await invalidate_predictions(db, current_user.id)

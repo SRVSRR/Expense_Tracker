@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 
 from app.db.database import get_db
-from app.models import Transaction, Account, User
+from app.models import Transaction, TransactionType, Account, User
 from app.schemas import (
     TransactionCreate,
     TransactionUpdate,
@@ -16,6 +16,20 @@ from app.utils import generate_uuid, get_current_user
 from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
+
+
+def apply_transaction_balance(
+    account: Account,
+    transaction_type: TransactionType,
+    amount: float,
+    multiplier: int = 1,
+) -> None:
+    """Apply or reverse a transaction amount on its account balance."""
+    signed_amount = amount * multiplier
+    if transaction_type.value == "expense":
+        account.current_balance -= signed_amount
+    else:
+        account.current_balance += signed_amount
 
 
 @router.post("/", response_model=TransactionSchema, status_code=status.HTTP_201_CREATED)
@@ -47,10 +61,7 @@ async def create_transaction(
     )
     db.add(transaction)
 
-    if tx_data.type.value == "expense":
-        account.current_balance -= tx_data.amount
-    else:
-        account.current_balance += tx_data.amount
+    apply_transaction_balance(account, tx_data.type, tx_data.amount)
 
     await db.commit()
     await db.refresh(transaction)
@@ -124,6 +135,18 @@ async def update_transaction(
         raise HTTPException(status_code=404, detail="Transaction not found")
 
     update_data = tx_data.model_dump(exclude_unset=True)
+    if "amount" in update_data:
+        account_result = await db.execute(
+            select(Account).where(
+                Account.id == transaction.account_id,
+                Account.user_id == current_user.id,
+            )
+        )
+        account = account_result.scalar_one_or_none()
+        if account is None:
+            raise HTTPException(status_code=404, detail="Account not found")
+        balance_delta = update_data["amount"] - transaction.amount
+        apply_transaction_balance(account, transaction.type, balance_delta)
     for field, value in update_data.items():
         setattr(transaction, field, value)
 
@@ -149,6 +172,17 @@ async def delete_transaction(
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
+    account_result = await db.execute(
+        select(Account).where(
+            Account.id == transaction.account_id,
+            Account.user_id == current_user.id,
+        )
+    )
+    account = account_result.scalar_one_or_none()
+    if account is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    apply_transaction_balance(account, transaction.type, transaction.amount, multiplier=-1)
     await db.delete(transaction)
     await db.commit()
     await invalidate_predictions(db, current_user.id)

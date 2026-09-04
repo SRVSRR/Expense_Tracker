@@ -7,6 +7,7 @@ from app.db.database import get_db
 from app.models import Account, User
 from app.schemas import AccountCreate, AccountUpdate, Account as AccountSchema
 from app.utils import generate_uuid, get_current_user
+from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
 
@@ -28,6 +29,7 @@ async def create_account(
     db.add(account)
     await db.commit()
     await db.refresh(account)
+    await invalidate_predictions(db, current_user.id)
     return account
 
 
@@ -81,6 +83,7 @@ async def update_account(
 
     await db.commit()
     await db.refresh(account)
+    await invalidate_predictions(db, current_user.id)
     return account
 
 
@@ -101,3 +104,4 @@ async def delete_account(
 
     await db.delete(account)
     await db.commit()
+    await invalidate_predictions(db, current_user.id)
