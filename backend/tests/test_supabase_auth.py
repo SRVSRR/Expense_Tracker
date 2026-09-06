@@ -52,6 +52,9 @@ class TestSupabaseJWTVerification:
     @pytest.mark.asyncio
     async def test_get_jwks_caches_response(self, mock_client_class, sample_jwks):
         """Test that JWKS is fetched and cached."""
+        import os
+        os.environ["SUPABASE_JWKS_URL"] = "https://test.supabase.co/auth/v1/.well-known/jwks.json"
+        
         mock_client = AsyncMock()
         mock_client_class.return_value.__aenter__.return_value = mock_client
         mock_response = AsyncMock()

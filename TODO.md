@@ -47,6 +47,13 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 	`correction_logs`). Cross-schema FK validated against Supabase `auth` schema.
 	Migration is reversible. Models updated with conditional `auth_user_id_column()`
 	helper for test compatibility (SQLite). All 82 tests pass.
+- **2026-09-07**: Auth Migration Phase 3 complete. Feature flag `AUTH_MODE` added
+	to toggle between local JWT and Supabase Auth. `get_current_user` now supports
+	both Supabase JWT (RS256 via JWKS) and local JWT (HS256). Local `/register`
+	and `/login` endpoints disabled when `AUTH_MODE=supabase`. Test fixtures
+	updated to create users directly with local JWT tokens (simulating Supabase
+	user IDs). All 82 tests pass with `AUTH_MODE=local` (tests simulate Supabase
+	user IDs via local JWT).
 
 ## P0 - Make the current API trustworthy
 
@@ -74,7 +81,7 @@ Phased migration documented in [MIGRATION.md](MIGRATION.md). Scope: backend only
 
 - [x] **Phase 1**: Backend token verification (Supabase JWT validator in `app/utils/supabase_auth.py`, 10 unit tests, 72 tests still pass)
 - [x] **Phase 2**: Schema change for `auth.users` FK (Alembic migration `59062dbe3d50`, cross-schema FK to `auth.users.id` on 6 tables, UUID type, reversible)
-- [ ] **Phase 3**: Switch live auth dependency (route swap, test fixture update, full 72-test pass)
+- [x] **Phase 3**: Switch live auth dependency (feature flag `AUTH_MODE`, Supabase JWT verification in `get_current_user`, local register/login disabled via flag, test fixtures updated, all 82 tests pass)
 - [ ] **Phase 4**: Cleanup (dead code removal, security docs update, dependency trim)
 - [ ] **Phase 5**: Mobile integration guidance (when mobile repo Phase 1 starts)
 

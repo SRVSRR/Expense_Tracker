@@ -9,9 +9,14 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from jose import jwt
+from datetime import datetime, timedelta
 
 # Disable rate limiting in tests
 os.environ["TESTING"] = "1"
+# Use local auth mode for tests (we'll simulate Supabase JWT locally)
+os.environ["AUTH_MODE"] = "local"
+os.environ["SECRET_KEY"] = "test-secret-key-for-testing-only"
 
 backend_directory = Path(__file__).parents[1]
 if str(backend_directory) not in sys.path:
@@ -71,54 +76,33 @@ def auth_headers() -> dict:
     return _make
 
 
-@pytest_asyncio.fixture
-async def register_user(client: AsyncClient) -> dict:
-    """Register a new user and return user data + token."""
-    async def _register(email: str = "test@example.com", password: str = "password123"):
-        response = await client.post(
-            "/api/auth/register",
-            json={"email": email, "password": password},
-        )
-        assert response.status_code == 201, f"Registration failed: {response.text}"
-        user_data = response.json()
-        # Login to get token
-        login_response = await client.post(
-            "/api/auth/login",
-            json={"email": email, "password": password},
-        )
-        assert login_response.status_code == 200
-        token = login_response.json()["access_token"]
-        return {"user": user_data, "token": token, "email": email, "password": password}
-    return _register
+async def create_test_user(db_session: AsyncSession, email: str = "test@example.com", password: str = "password123") -> dict:
+    """Create a test user directly in the database and return user data + token."""
+    user = User(
+        id=generate_uuid(),
+        email=email,
+        password_hash=get_password_hash(password),
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    # Seed default categories for the new user
+    from app.services.seed import seed_categories
+    await seed_categories(user.id, db_session)
+    token = create_access_token(data={"sub": user.id})
+    return {"user": user, "token": token, "email": email, "password": password}
 
 
 @pytest_asyncio.fixture
-async def create_user_direct(db_session: AsyncSession) -> callable:
-    """Create a user directly in the database (bypassing API)."""
-    async def _create(email: str = "test@example.com", password: str = "password123"):
-        user = User(
-            id=generate_uuid(),
-            email=email,
-            password_hash=get_password_hash(password),
-        )
-        db_session.add(user)
-        await db_session.commit()
-        await db_session.refresh(user)
-        token = create_access_token(data={"sub": user.id})
-        return {"user": user, "token": token, "email": email, "password": password}
-    return _create
+async def auth_user(db_session: AsyncSession) -> dict:
+    """Create and authenticate a user directly in the database."""
+    return await create_test_user(db_session)
 
 
 @pytest_asyncio.fixture
-async def auth_user(client: AsyncClient, register_user) -> dict:
-    """Create and authenticate a user via API."""
-    return await register_user()
-
-
-@pytest_asyncio.fixture
-async def second_user(client: AsyncClient, register_user) -> dict:
-    """Create a second authenticated user."""
-    return await register_user(email="other@example.com", password="password123")
+async def second_user(db_session: AsyncSession) -> dict:
+    """Create a second authenticated user directly in the database."""
+    return await create_test_user(db_session, email="other@example.com", password="password123")
 
 
 @pytest_asyncio.fixture

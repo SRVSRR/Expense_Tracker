@@ -12,9 +12,6 @@ from sqlalchemy import select
 from app.db.database import get_db
 from app.models import User
 
-SUPABASE_JWKS_URL = os.getenv("SUPABASE_JWKS_URL")  # e.g., https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json
-SUPABASE_ISSUER = os.getenv("SUPABASE_ISSUER")  # e.g., https://<project-ref>.supabase.co/auth/v1
-
 security = HTTPBearer()
 
 _jwks_cache: Optional[Dict[str, Any]] = None
@@ -24,10 +21,11 @@ async def get_jwks() -> Dict[str, Any]:
     """Fetch and cache Supabase JWKS."""
     global _jwks_cache
     if _jwks_cache is None:
-        if not SUPABASE_JWKS_URL:
+        supabase_jwks_url = os.getenv("SUPABASE_JWKS_URL")
+        if not supabase_jwks_url:
             raise RuntimeError("SUPABASE_JWKS_URL not configured")
         async with httpx.AsyncClient() as client:
-            resp = await client.get(SUPABASE_JWKS_URL, timeout=10.0)
+            resp = await client.get(supabase_jwks_url, timeout=10.0)
             resp.raise_for_status()
             _jwks_cache = resp.json()
     return _jwks_cache
@@ -54,12 +52,16 @@ async def verify_supabase_token(token: str) -> Dict[str, Any]:
     jwks = await get_jwks()
     signing_key = get_signing_key(token, jwks)
 
+    supabase_issuer = os.getenv("SUPABASE_ISSUER")
+    if not supabase_issuer:
+        raise RuntimeError("SUPABASE_ISSUER not configured")
+
     payload = jwt.decode(
         token,
         signing_key,
         algorithms=["RS256"],
         audience="authenticated",
-        issuer=SUPABASE_ISSUER,
+        issuer=supabase_issuer,
     )
     return payload
 

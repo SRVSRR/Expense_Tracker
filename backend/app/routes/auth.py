@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+import os
 
 from app.db.database import get_db
 from app.models import User
@@ -12,6 +13,7 @@ from app.utils import (
     verify_password,
     create_access_token,
     get_current_user,
+    is_supabase_auth_mode,
 )
 from app.services.seed import seed_categories
 from app.utils.rate_limit import limiter
@@ -22,6 +24,13 @@ router = APIRouter()
 @router.post("/register", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 async def register(request: Request, user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+    # Local registration disabled in Supabase Auth mode
+    if is_supabase_auth_mode():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Local registration is disabled. Use Supabase Auth for registration.",
+        )
+
     result = await db.execute(select(User).where(User.email == user_data.email))
     if result.scalar_one_or_none():
         raise HTTPException(
@@ -47,6 +56,13 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
 @router.post("/login")
 @limiter.limit("10/minute")
 async def login(request: Request, user_data: UserLogin, db: AsyncSession = Depends(get_db)):
+    # Local login disabled in Supabase Auth mode
+    if is_supabase_auth_mode():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Local login is disabled. Use Supabase Auth for login.",
+        )
+
     result = await db.execute(select(User).where(User.email == user_data.email))
     user = result.scalar_one_or_none()
     if not user or not verify_password(user_data.password, user.password_hash):

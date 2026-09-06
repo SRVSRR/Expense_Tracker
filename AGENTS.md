@@ -80,7 +80,7 @@ Not done (ML upgrade):
 
 **P0 Complete**: All integration tests for auth/user isolation, CRUD + balance effects, forecast/budget/cache invalidation, category parent ownership validation, and transaction edit policy (`type`/`account_id` immutable) are passing.
 
-**Auth Migration**: Phase 1 complete (Supabase JWT validator ready). Phase 2 complete (FK schema). Phase 3 (live auth dependency swap) next.
+**Auth Migration**: Phase 1 complete (Supabase JWT validator ready). Phase 2 complete (FK schema). Phase 3 complete (feature flag `AUTH_MODE`, `get_current_user` supports both Supabase RS256 and local HS256, local register/login disabled via flag, test fixtures updated). All 82 tests pass. Phase 4 (cleanup) next.
 
 ## Tech stack (API-only)
 
@@ -242,6 +242,7 @@ future phases.
 | 2026-09-06 | Documentation | Updated `TODO.md` (all P0 items ✅, verification log) and `AGENTS.md` (current status, what's next) |
 | 2026-09-07 | Auth Migration Phase 1 | Added `app/utils/supabase_auth.py` with JWKS fetching/caching, RS256 signature verification, audience/issuer/expiry validation; 10 unit tests in `tests/test_supabase_auth.py` (mocked JWKS + real RSA key validation); all 72 existing integration tests still pass (82 total); local JWT auth remains live path — Supabase verifier is additive and isolated for Phase 2+ integration |
 | 2026-09-07 | Auth Migration Phase 2 | Alembic migration `59062dbe3d50` adds `auth_user_id` (UUID) columns with FK to `auth.users.id` on 6 tables (`accounts`, `transactions`, `categories`, `recurring_rules`, `predictions`, `correction_logs`). Cross-schema FK validated against Supabase `auth` schema. Migration is reversible. Models updated with conditional `auth_user_id_column()` helper for test compatibility (SQLite). All 82 tests pass. |
+| 2026-09-07 | Auth Migration Phase 3 | Feature flag `AUTH_MODE` added to toggle between local JWT and Supabase Auth. `get_current_user` now supports both Supabase JWT (RS256 via JWKS) and local JWT (HS256). Local `/register` and `/login` endpoints disabled when `AUTH_MODE=supabase`. Test fixtures updated to create users directly with local JWT tokens (simulating Supabase user IDs). All 82 tests pass with `AUTH_MODE=local`. |
 
 ## What to do next (priority order)
 
