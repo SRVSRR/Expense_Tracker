@@ -1,5 +1,5 @@
 """Recurring rules routes"""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta
@@ -10,6 +10,7 @@ from app.models import RecurringRule, Transaction, Account, User
 from app.schemas import (
     RecurringRuleCreate,
     RecurringRule as RecurringRuleSchema,
+    RecurringUpcomingItem,
 )
 from app.utils import generate_uuid, get_current_user
 from app.services.prediction_cache import invalidate_predictions
@@ -17,7 +18,18 @@ from app.services.prediction_cache import invalidate_predictions
 router = APIRouter()
 
 
-@router.post("/", response_model=RecurringRuleSchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=RecurringRuleSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create recurring rule",
+    description="Creates a recurring rule linked to a transaction. The transaction must belong to the current user.",
+    responses={
+        201: {"description": "Recurring rule created successfully"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+        404: {"description": "Transaction not found or not owned by user"},
+    },
+)
 async def create_recurring_rule(
     data: RecurringRuleCreate,
     db: AsyncSession = Depends(get_db),
@@ -49,7 +61,16 @@ async def create_recurring_rule(
     return rule
 
 
-@router.get("/", response_model=List[RecurringRuleSchema])
+@router.get(
+    "/",
+    response_model=List[RecurringRuleSchema],
+    summary="List recurring rules",
+    description="Returns all recurring rules for the current user, ordered by expected date.",
+    responses={
+        200: {"description": "List of recurring rules"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+    },
+)
 async def list_recurring_rules(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -62,9 +83,18 @@ async def list_recurring_rules(
     return result.scalars().all()
 
 
-@router.get("/upcoming")
+@router.get(
+    "/upcoming",
+    response_model=List[RecurringUpcomingItem],
+    summary="Upcoming recurring transactions",
+    description="Returns expanded upcoming occurrences for all recurring rules within the specified day range.",
+    responses={
+        200: {"description": "List of upcoming transaction occurrences"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+    },
+)
 async def get_upcoming_transactions(
-    days: int = 30,
+    days: int = Query(default=30, ge=1, le=365, description="Number of days to look ahead"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -84,7 +114,6 @@ async def get_upcoming_transactions(
 
     upcoming = []
     for rule in rules:
-        # Generate occurrences based on pattern and frequency
         occurrences = _generate_occurrences(rule, now, end)
         for occ_date in occurrences:
             upcoming.append({

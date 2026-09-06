@@ -8,6 +8,11 @@ from app.db.database import get_db
 from app.models import Transaction, Account, User
 from app.utils import get_current_user
 from app.services.prediction_cache import get_cached_prediction, store_prediction
+from app.schemas import (
+    CashflowForecast,
+    RunwayForecast,
+    AnomaliesResponse,
+)
 
 router = APIRouter()
 
@@ -149,9 +154,18 @@ async def _compute_anomalies(db: AsyncSession, user_id: str) -> dict:
     }
 
 
-@router.get("/cashflow")
+@router.get(
+    "/cashflow",
+    response_model=CashflowForecast,
+    summary="Cash flow forecast",
+    description="Returns a rolling 3-month average cash flow forecast for the specified number of days. Cached for 24 hours.",
+    responses={
+        200: {"description": "Successful response with forecast data"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+    },
+)
 async def get_cashflow_forecast(
-    days: int = Query(default=30, ge=7, le=365),
+    days: int = Query(default=30, ge=7, le=365, description="Number of days to forecast"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -165,9 +179,18 @@ async def get_cashflow_forecast(
     return data
 
 
-@router.get("/runway")
+@router.get(
+    "/runway",
+    response_model=RunwayForecast,
+    summary="Runway prediction",
+    description="Computes days until balance hits a threshold based on net daily burn rate. Cached for 12 hours.",
+    responses={
+        200: {"description": "Successful response with runway data"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+    },
+)
 async def get_runway_forecast(
-    threshold: float = Query(default=0.0, description="Balance threshold"),
+    threshold: float = Query(default=0.0, description="Balance threshold (default 0)"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -181,7 +204,16 @@ async def get_runway_forecast(
     return data
 
 
-@router.get("/anomalies")
+@router.get(
+    "/anomalies",
+    response_model=AnomaliesResponse,
+    summary="Anomaly detection",
+    description="Detects per-category expense outliers (>2x category average). Cached for 24 hours.",
+    responses={
+        200: {"description": "Successful response with anomaly data"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+    },
+)
 async def detect_anomalies(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),

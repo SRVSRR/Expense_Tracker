@@ -8,6 +8,7 @@ from app.db.database import get_db
 from app.models import Transaction, Account, User
 from app.utils import get_current_user
 from app.services.prediction_cache import get_cached_prediction, store_prediction
+from app.schemas import BudgetRecommendations, CategoryAnalysis
 
 router = APIRouter()
 
@@ -123,7 +124,16 @@ async def _compute_category_analysis(db: AsyncSession, user_id: str) -> dict:
     }
 
 
-@router.get("/recommendations")
+@router.get(
+    "/recommendations",
+    response_model=BudgetRecommendations,
+    summary="Budget recommendations",
+    description="Returns rule-based budget caps per category based on historical averages and income percentage. Cached for 7 days.",
+    responses={
+        200: {"description": "Successful response with budget recommendations"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+    },
+)
 async def get_budget_recommendations(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -138,7 +148,16 @@ async def get_budget_recommendations(
     return data
 
 
-@router.get("/category-analysis")
+@router.get(
+    "/category-analysis",
+    response_model=CategoryAnalysis,
+    summary="Category spending analysis",
+    description="Returns full spending breakdown by category for the last 3 months. Cached for 7 days.",
+    responses={
+        200: {"description": "Successful response with category analysis"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+    },
+)
 async def analyze_category_spending(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
