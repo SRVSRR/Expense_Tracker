@@ -4,6 +4,13 @@ Status: API foundation exists; correctness and operational work is in progress.
 
 Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs/P0_PLAN.md).
 
+## Project change policy
+
+- Every major implementation, configuration, documentation, or security change
+	must be committed incrementally throughout the entire project.
+- Keep commits focused on one coherent change and record the affected files and
+	verification in `AGENTS.md` and this file.
+
 ## Verification log
 
 - **2026-09-05**: Live authenticated smoke test passed for account creation
@@ -14,6 +21,20 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 - **2026-09-06**: Full P0 test suite passes (72 tests). All integration tests for auth,
 	user isolation, CRUD operations, balance effects, forecast/budget endpoints,
 	cache invalidation, and category parent ownership validation are green.
+- **2026-09-06**: Supabase Transaction pooler support documented and configured;
+	PostgreSQL asyncpg connections disable prepared-statement caching for port 6543.
+- **2026-09-06**: Syntax and database-configuration checks pass. Full pytest
+	collection is currently blocked by the environment's missing macOS
+	`libomp.dylib` required by LightGBM; this is unrelated to pooler configuration.
+- **2026-09-06**: Local Supabase Transaction pooler URL format is valid, but the
+	connectivity check received `password authentication failed`; replace or reset
+	the database password and URL-encode special characters before retrying.
+- **2026-09-06**: Retried the local Supabase Transaction pooler connection after
+	updating credentials; `SELECT 1` succeeded with prepared-statement caching disabled.
+- **2026-09-06**: Removed the stale local SQLite runtime configuration and confirmed
+	no `backend/expense_tracker.db` exists; Supabase is now the only runtime database.
+- **2026-09-06**: Live registration request succeeded with `201 Created`; the
+	response returned user metadata without exposing the password or password hash.
 
 ## P0 - Make the current API trustworthy
 

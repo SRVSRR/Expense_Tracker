@@ -21,6 +21,13 @@ correctness over frontend UI concerns.
 - After every substantive implementation change or verification, update both
   `TODO.md` and `AGENTS.md` so status, decisions, and remaining technical debt
   stay synchronized.
+- Every major change anywhere in the project must be committed incrementally;
+  this rule applies to all phases and file types, not only P0. Keep each commit
+  focused on one coherent change and include the corresponding documentation
+  and verification updates.
+- Do not create a commit unless the user explicitly requests implementation or
+  a commit; when implementation is requested, do not leave the completed major
+  change uncommitted.
 - Do not mark a checklist item complete based only on a manual smoke test;
   record the verification separately until the corresponding automated test or
   acceptance criteria are satisfied.
@@ -30,6 +37,22 @@ correctness over frontend UI concerns.
   transaction updates. Do not add partial support that can leave two account
   balances inconsistent; a future atomic transfer/type-change feature must be
   planned separately.
+- Supabase Transaction pooler uses port 6543. For `postgresql+asyncpg://`
+  URLs, the database engine must disable prepared-statement caching with
+  `statement_cache_size=0`; never commit the password-bearing URL.
+- If tests fail during collection because LightGBM cannot load macOS
+  `libomp.dylib`, treat that as an environment prerequisite issue separate from
+  database configuration and record it in `TODO.md`.
+- A valid pooler URL with `password authentication failed` indicates a secret
+  or URL-encoding problem, not an engine configuration problem; never log or
+  copy the password into project files.
+- The Supabase Transaction pooler connection was verified on 2026-09-06 with a
+  password-safe `SELECT 1` check and `statement_cache_size=0`.
+- The application now uses Supabase PostgreSQL exclusively; local SQLite is
+  retained only for isolated automated tests and no local runtime database is
+  created.
+- Registration was verified on 2026-09-06 with a live `201 Created` response;
+  user responses must continue to exclude password fields and password hashes.
 
 ## Current status (as of 2026-09-06)
 
@@ -60,8 +83,8 @@ Not done (ML upgrade):
 | Layer | Choice | Notes |
 |---|---|---|
 | **API** | FastAPI (Python 3.13) | Run via `uvicorn main:app --reload` |
-| **Database (dev)** | SQLite via `aiosqlite` | `backend/expense_tracker.db` |
-| **Database (prod)** | PostgreSQL via Supabase | Swap `.env` `DATABASE_URL` |
+| **Database (runtime)** | PostgreSQL via Supabase Transaction pooler | Port 6543; `statement_cache_size=0` |
+| **Database (tests)** | In-memory SQLite via `aiosqlite` | Isolated fixtures only; never production data |
 | **Auth** | Local JWT (bcrypt + python-jose) | Not Supabase Auth yet |
 | **ML** | LightGBM, scikit-learn, pandas | Installed but not yet integrated |
 | **Backend venv** | `backend/venv/` | Activate: `source venv/bin/activate` |
@@ -69,7 +92,7 @@ Not done (ML upgrade):
 ### Important compatibility notes
 
 - **bcrypt pinned to <5**: `passlib` is removed; we use `bcrypt` directly. Version 4.x works; 5.x broke passlib.
-- **SQLite**: `alembic` now uses sync engine — `echo=False` in engine config; alembic `env.py` loads `.env` before anything else
+- **PostgreSQL**: Supabase Transaction pooler uses port 6543; asyncpg prepared-statement caching is disabled
 - **CORS**: `allow_origins=["*"]` — adjust for production
 
 ## API endpoints (API-only)
@@ -127,7 +150,7 @@ the app should redirect to the login screen.
 
 Completed:
 1. Scaffolded repo structure.
-2. Set up SQLite dev database (Postgres-ready via `.env` swap).
+2. Configure Supabase PostgreSQL through the Transaction pooler.
 3. Implemented all 6 tables via SQLAlchemy ORM.
 4. FastAPI: Full CRUD for accounts, transactions, categories — all scoped to authenticated user.
 5. JWT auth: register, login, get-me endpoints with bcrypt password hashing.
@@ -196,7 +219,12 @@ Completed:
 
 Deferred until further notice.
 
-## Incremental Commits (P0 Implementation)
+## Incremental Change Log
+
+Every major project change must be added here with its date, commit identifier
+or focused commit description, files affected, and verification performed. The
+entries below begin with the P0 implementation history and remain applicable to
+future phases.
 
 | Date | Commit | Description |
 |---|---|---|
@@ -211,14 +239,14 @@ Deferred until further notice.
 
 ## What to do next (priority order)
 
-1. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres
+1. **Consider Supabase Auth** — The runtime database is already Supabase PostgreSQL; identity migration remains separate.
 2. **Add OpenAPI/schema docs** — generate `/docs` and `/redoc` for API consumers
 3. **ML upgrade** — Add LightGBM regressors for forecasting (P2)
 
 ## Conventions the agent must follow throughout
 
 - **Python**: type hints throughout; keep Pydantic models accurate
-- **SQLite**: `echo=False` in engine config; alembic uses sync engine with `.env` loading
+- **Database**: Supabase PostgreSQL at runtime; in-memory SQLite is test-only
 - **CORS**: `allow_origins=["*"]` — adjust for production
 - **API namespace**: `/accounts`, `/transactions`, `/forecast/cashflow`, etc.
 - **All endpoints scoped**: never return another user's data
@@ -232,7 +260,6 @@ Deferred until further notice.
     main.py                       App entrypoint (CORS, lifespan, routers)
     requirements.txt              Python deps (aiosqlite, fastapi, lightgbm, etc.)
     .env                          DATABASE_URL, SECRET_KEY
-    expense_tracker.db            SQLite database (auto-created on first run)
     /app
       /db
         database.py               Async engine, session factory, init_db()

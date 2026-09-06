@@ -81,9 +81,7 @@ See [TODO.md](TODO.md) for the prioritized implementation queue and [docs/INFRAS
 - macOS, Linux, or Windows
 - Python 3.13 recommended
 - Git
-- A database:
-  - SQLite for local development
-  - PostgreSQL for production
+- A Supabase PostgreSQL database using the Transaction pooler
 - A hosting account for deployment, such as Railway or Render
 
 The ML categorizer additionally uses LightGBM, scikit-learn, NumPy, and pandas. These are listed in [backend/requirements.txt](backend/requirements.txt).
@@ -111,14 +109,14 @@ The local server is available at:
 - ReDoc: http://127.0.0.1:8000/redoc
 - OpenAPI JSON: http://127.0.0.1:8000/openapi.json
 
-The first startup creates or migrates the local SQLite database. Stop the development server with `Ctrl+C`.
+The first startup runs migrations against the configured Supabase database. Stop the development server with `Ctrl+C`.
 
 ## Configuration
 
 Copy [backend/.env.example](backend/.env.example) to `backend/.env`. Do not commit the resulting `.env` file.
 
 ```env
-DATABASE_URL=sqlite+aiosqlite:///./expense_tracker.db
+DATABASE_URL=postgresql+asyncpg://postgres.<project-ref>:<password>@<pooler-host>:6543/postgres
 SECRET_KEY=replace-with-a-long-random-value
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
@@ -131,7 +129,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 | `SECRET_KEY` | Yes in production | Secret used to sign JWTs. Generate a long random value and keep it private. |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | No | JWT lifetime. Defaults to 1440 minutes. |
 
-The application currently has a development fallback for the database URL, but production deployments should always set it explicitly.
+`DATABASE_URL` is required; the application has no local SQLite fallback. For Supabase Transaction pooler connections, use port `6543` and the `postgresql+asyncpg://` driver form.
 
 ## Database and migrations
 
@@ -176,15 +174,7 @@ Tests currently cover balance application/reversal and monthly recurring-date ex
 
 The P0 implementation sequence and acceptance criteria are documented in [docs/P0_PLAN.md](docs/P0_PLAN.md).
 
-For a clean local reset, stop the server and remove the ignored SQLite database, then restart:
-
-```sh
-rm backend/expense_tracker.db
-cd backend
-alembic upgrade head
-```
-
-Only do this for local development. It deletes local data.
+For a clean remote reset, use a disposable Supabase project or an explicit migration strategy. Do not delete production data as a test reset.
 
 ## Authentication
 

@@ -5,12 +5,16 @@ import os
 from app.models import Base
 
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite+aiosqlite:///./expense_tracker.db"
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL must be set; local SQLite fallback is disabled")
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+connect_args = {}
+if DATABASE_URL.startswith("postgresql+asyncpg://"):
+    # Supabase transaction pooling does not support session-scoped prepared statements.
+    connect_args["statement_cache_size"] = 0
+
+engine = create_async_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

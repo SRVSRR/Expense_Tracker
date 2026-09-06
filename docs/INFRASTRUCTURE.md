@@ -19,28 +19,29 @@ The API is available at `http://127.0.0.1:8000`. OpenAPI is at `/docs`, `/redoc`
 pytest -q
 ```
 
-The local `.env` should use SQLite:
+The local `.env` should use the Supabase Transaction pooler:
 
 ```env
-DATABASE_URL=sqlite+aiosqlite:///./expense_tracker.db
+DATABASE_URL=postgresql+asyncpg://postgres.<project-ref>:<password>@<pooler-host>:6543/postgres
 SECRET_KEY=replace-with-a-long-random-development-value
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
 
-The API startup runs Alembic migrations. Do not commit `.env` or the SQLite database.
+The API startup runs Alembic migrations against Supabase. Do not commit `.env` or expose the database URL.
 
 ## Supabase/PostgreSQL
 
 1. Create a Supabase project and copy its pooled PostgreSQL connection string.
-2. Set `DATABASE_URL` to the async driver form, for example `postgresql+asyncpg://...`.
-3. Set a unique production `SECRET_KEY`.
-4. Run migrations from the backend directory before starting the service:
+2. For the Supabase **Transaction pooler**, select port `6543` in the Connect panel and store the resulting string in the local secret file `backend/.env` as `DATABASE_URL`. Convert the driver prefix to `postgresql+asyncpg://` if Supabase provides `postgres://` or `postgresql://`.
+3. The application automatically sets `asyncpg`'s `statement_cache_size=0` for PostgreSQL URLs, which is required when using transaction pooling. Do not put the password in source control, logs, or client applications.
+4. Set a unique production `SECRET_KEY`.
+5. Run migrations from the backend directory before starting the service:
 
 ```sh
 alembic upgrade head
 ```
 
-5. Confirm `/health`, `/docs`, registration, login, and a protected endpoint.
+6. Confirm `/health`, `/docs`, registration, login, and a protected endpoint.
 
 The current API uses local JWT authentication. Supabase can provide PostgreSQL immediately, but switching identity to Supabase Auth is a separate migration and requires client token changes.
 

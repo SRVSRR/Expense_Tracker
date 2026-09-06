@@ -31,6 +31,7 @@ Do not open public issues for security vulnerabilities. We will acknowledge rece
 - SQLite dev database excluded from version control
 - Production uses PostgreSQL via Supabase with TLS
 - Environment variables for secrets (`SECRET_KEY`, `DATABASE_URL`)
+- Supabase transaction-pooler connections disable asyncpg prepared-statement caching; database credentials remain local or in the hosting provider's secret store
 
 ### API Security
 - CORS configured for development (`allow_origins=["*"]`) — restrict in production (see Production Checklist)
@@ -86,5 +87,7 @@ DATABASE_URL=sqlite+aiosqlite:///./expense_tracker.db
 SECRET_KEY=dev-secret-change-in-production
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
+
+For Supabase Transaction pooler connections, use the port-6543 `postgresql+asyncpg://` URL in `DATABASE_URL`. The application disables prepared statements automatically for this PostgreSQL URL. Never commit or expose the URL because it contains the database password.
 
 Production should override all values and use a managed secrets store.
