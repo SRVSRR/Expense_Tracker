@@ -54,7 +54,7 @@ correctness over frontend UI concerns.
 - Registration was verified on 2026-09-06 with a live `201 Created` response;
   user responses must continue to exclude password fields and password hashes.
 
-## Current status (as of 2026-09-06)
+## Current status (as of 2026-09-07)
 
 **Phases 1–6: COMPLETE (with API + caching + P0 test coverage)**
 
@@ -67,6 +67,7 @@ Completed:
 - **Phase 5 (ML categorization)**: `backend/app/ml/categorizer.py` — LightGBM classifier with TF-IDF features; model train via `/api/categorize/train`; confidence threshold 0.55 fallback; model info endpoint
 - **Phase 6 upgrade (prediction caching)**: `/api/forecast/*` and `/api/budget/*` endpoints now read from `predictions` table with TTL caching (24h/12h/24h/7d); `invalidate_predictions()` called on transaction create/update/delete
 - **P0 Test Infrastructure**: Isolated async integration-test fixtures with in-memory SQLite, auth helpers, 72 automated integration tests passing
+- **Auth Migration Phase 1**: Supabase JWT verification implemented in `app/utils/supabase_auth.py` (JWKS fetching/caching, RS256 verification, audience/issuer/expiry validation); 10 unit tests pass; all 72 existing integration tests still pass (82 total); local JWT auth remains live path — Supabase verifier is additive and isolated for Phase 2+ integration
 
 Not done (ML upgrade):
 - LightGBM regressors for income/expense forecasting.
@@ -78,6 +79,8 @@ Not done (ML upgrade):
 
 **P0 Complete**: All integration tests for auth/user isolation, CRUD + balance effects, forecast/budget/cache invalidation, category parent ownership validation, and transaction edit policy (`type`/`account_id` immutable) are passing.
 
+**Auth Migration**: Phase 1 complete (Supabase JWT validator ready). Phase 2 (FK schema) next.
+
 ## Tech stack (API-only)
 
 | Layer | Choice | Notes |
@@ -85,7 +88,7 @@ Not done (ML upgrade):
 | **API** | FastAPI (Python 3.13) | Run via `uvicorn main:app --reload` |
 | **Database (runtime)** | PostgreSQL via Supabase Transaction pooler | Port 6543; `statement_cache_size=0` |
 | **Database (tests)** | In-memory SQLite via `aiosqlite` | Isolated fixtures only; never production data |
-| **Auth** | Local JWT (bcrypt + python-jose) | Not Supabase Auth yet |
+| **Auth** | Local JWT (bcrypt + python-jose) | Supabase Auth migration Phase 1 complete (JWKS validator ready); Phase 2+ pending |
 | **ML** | LightGBM, scikit-learn, pandas | Installed but not yet integrated |
 | **Backend venv** | `backend/venv/` | Activate: `source venv/bin/activate` |
 
@@ -236,10 +239,11 @@ future phases.
 | 2026-09-06 | RecurringRule schema fix | Added `transaction_id: Optional[str] = None` to `RecurringRule` response schema in `backend/app/schemas/__init__.py` |
 | 2026-09-06 | Route trailing slashes | Updated test endpoints to use trailing slashes (`/api/accounts/`, `/api/transactions/`, `/api/categories/`, `/api/recurring/`) to avoid 307 redirects |
 | 2026-09-06 | Documentation | Updated `TODO.md` (all P0 items ✅, verification log) and `AGENTS.md` (current status, what's next) |
+| 2026-09-07 | Auth Migration Phase 1 | Added `app/utils/supabase_auth.py` with JWKS fetching/caching, RS256 signature verification, audience/issuer/expiry validation; 10 unit tests in `tests/test_supabase_auth.py` (mocked JWKS + real RSA key validation); all 72 existing integration tests still pass (82 total); local JWT auth remains live path — Supabase verifier is additive and isolated for Phase 2+ integration |
 
 ## What to do next (priority order)
 
-1. **Consider Supabase Auth** — The runtime database is already Supabase PostgreSQL; identity migration remains separate.
+1. **Auth Migration (CRITICAL)** — Migrate from local JWT to Supabase Auth. See [MIGRATION.md](MIGRATION.md) for the complete phased plan. This must be done before the mobile client is built, so it becomes the first priority after P0.
 2. **Add OpenAPI/schema docs** — generate `/docs` and `/redoc` for API consumers
 3. **ML upgrade** — Add LightGBM regressors for forecasting (P2)
 

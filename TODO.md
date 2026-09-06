@@ -35,6 +35,12 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 	no `backend/expense_tracker.db` exists; Supabase is now the only runtime database.
 - **2026-09-06**: Live registration request succeeded with `201 Created`; the
 	response returned user metadata without exposing the password or password hash.
+- **2026-09-07**: Auth Migration Phase 1 complete. Supabase JWT verification
+	implemented in `app/utils/supabase_auth.py` with JWKS fetching/caching,
+	RS256 signature verification, audience/issuer/expiry validation. 10 unit tests
+	pass (mocked + real RSA key). All 72 existing integration tests still pass
+	(82 total). Local JWT auth remains the live path; Supabase verifier is
+	additive and isolated for Phase 2+ integration.
 
 ## P0 - Make the current API trustworthy
 
@@ -55,6 +61,16 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 4. Add category parent ownership validation and negative tests.
 5. Cover forecast, budget, prediction caching, and invalidation behavior.
 6. Run the full suite and update this verification log with the result.
+
+## Auth Migration - Local JWT → Supabase Auth
+
+Phased migration documented in [MIGRATION.md](MIGRATION.md). Scope: backend only; clients are unaffected until Phase 5 (mobile repo integration).
+
+- [x] **Phase 1**: Backend token verification (Supabase JWT validator in `app/utils/supabase_auth.py`, 10 unit tests including real RSA key validation, existing 72 tests still pass)
+- [ ] **Phase 2**: Schema change for `auth.users` FK (Alembic migration, cross-schema FK validation)
+- [ ] **Phase 3**: Switch live auth dependency (route swap, test fixture update, full 72-test pass)
+- [ ] **Phase 4**: Cleanup (dead code removal, security docs update, dependency trim)
+- [ ] **Phase 5**: Mobile integration guidance (when mobile repo Phase 1 starts)
 
 ## P1 - Finish documented functionality
 
