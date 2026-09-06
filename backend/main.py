@@ -8,8 +8,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from alembic.config import Config
 from alembic import command
+from sqlalchemy import text
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.routes import transactions, accounts, categories, forecast, budget, auth, recurring, categorize
+from app.db.database import engine
+from app.utils.rate_limit import limiter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("expense_tracker")
@@ -33,6 +38,9 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS configuration
 app.add_middleware(
@@ -73,7 +81,14 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {"status": "ok"}
+    """Health check with database connectivity verification."""
+    db_status = "ok"
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception as e:
+        db_status = f"error: {e}"
+    return {"status": "ok", "database": db_status}
 
 
 if __name__ == "__main__":

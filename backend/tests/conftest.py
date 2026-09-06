@@ -1,4 +1,5 @@
 """Test configuration and fixtures for integration tests."""
+import os
 import sys
 from pathlib import Path
 from typing import AsyncGenerator
@@ -8,6 +9,9 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
+# Disable rate limiting in tests
+os.environ["TESTING"] = "1"
 
 backend_directory = Path(__file__).parents[1]
 if str(backend_directory) not in sys.path:

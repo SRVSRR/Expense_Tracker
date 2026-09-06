@@ -1,5 +1,5 @@
 """Categorization routes — suggest categories, log corrections, train ML model."""
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional
@@ -16,6 +16,7 @@ from app.schemas import (
     CategorizeTrainResponse,
     CategorizeModelInfo,
 )
+from app.utils.rate_limit import limiter
 
 router = APIRouter()
 
@@ -86,9 +87,12 @@ async def log_correction(
     responses={
         200: {"description": "Training result"},
         401: {"description": "Unauthorized - invalid or missing token"},
+        429: {"description": "Rate limit exceeded"},
     },
 )
+@limiter.limit("2/hour")
 async def train_model(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
