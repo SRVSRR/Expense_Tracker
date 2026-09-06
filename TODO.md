@@ -41,6 +41,12 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 	pass (mocked + real RSA key). All 72 existing integration tests still pass
 	(82 total). Local JWT auth remains the live path; Supabase verifier is
 	additive and isolated for Phase 2+ integration.
+- **2026-09-07**: Auth Migration Phase 2 complete. Alembic migration `59062dbe3d50`
+	adds `auth_user_id` (UUID) columns with FK to `auth.users.id` on 6 tables
+	(`accounts`, `transactions`, `categories`, `recurring_rules`, `predictions`,
+	`correction_logs`). Cross-schema FK validated against Supabase `auth` schema.
+	Migration is reversible. Models updated with conditional `auth_user_id_column()`
+	helper for test compatibility (SQLite). All 82 tests pass.
 
 ## P0 - Make the current API trustworthy
 
@@ -66,8 +72,8 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 
 Phased migration documented in [MIGRATION.md](MIGRATION.md). Scope: backend only; clients are unaffected until Phase 5 (mobile repo integration).
 
-- [x] **Phase 1**: Backend token verification (Supabase JWT validator in `app/utils/supabase_auth.py`, 10 unit tests including real RSA key validation, existing 72 tests still pass)
-- [ ] **Phase 2**: Schema change for `auth.users` FK (Alembic migration, cross-schema FK validation)
+- [x] **Phase 1**: Backend token verification (Supabase JWT validator in `app/utils/supabase_auth.py`, 10 unit tests, 72 tests still pass)
+- [x] **Phase 2**: Schema change for `auth.users` FK (Alembic migration `59062dbe3d50`, cross-schema FK to `auth.users.id` on 6 tables, UUID type, reversible)
 - [ ] **Phase 3**: Switch live auth dependency (route swap, test fixture update, full 72-test pass)
 - [ ] **Phase 4**: Cleanup (dead code removal, security docs update, dependency trim)
 - [ ] **Phase 5**: Mobile integration guidance (when mobile repo Phase 1 starts)

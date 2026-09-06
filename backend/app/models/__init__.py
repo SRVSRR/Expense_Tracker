@@ -2,9 +2,23 @@
 from datetime import datetime
 from typing import Optional
 from sqlalchemy import Column, String, Float, DateTime, Integer, ForeignKey, Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 import enum
+import os
+
+Base = declarative_base()
+
+# Helper to conditionally add auth_user_id column (only in production PostgreSQL)
+# Tests use SQLite in-memory which doesn't support UUID or auth schema
+TESTING = os.getenv("TESTING") == "1"
+
+def auth_user_id_column():
+    """Return auth_user_id column for production, or None for tests."""
+    if TESTING:
+        return None
+    return Column(UUID(as_uuid=False), ForeignKey("auth.users.id"), nullable=True, index=True)
 
 Base = declarative_base()
 
@@ -28,6 +42,7 @@ class Account(Base):
     
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), index=True)
+    auth_user_id = auth_user_id_column()
     name = Column(String, index=True)
     currency = Column(String, default="USD")
     initial_balance = Column(Float, default=0.0)
@@ -50,6 +65,7 @@ class Transaction(Base):
     
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), index=True)
+    auth_user_id = auth_user_id_column()
     account_id = Column(String, ForeignKey("accounts.id"), index=True)
     type = Column(SQLEnum(TransactionType), index=True)
     amount = Column(Float)
@@ -71,6 +87,7 @@ class Category(Base):
     
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), index=True)
+    auth_user_id = auth_user_id_column()
     name = Column(String, index=True)
     parent_id = Column(String, ForeignKey("categories.id"), nullable=True)
     type = Column(SQLEnum(TransactionType))
@@ -87,6 +104,7 @@ class RecurringRule(Base):
     
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), index=True)
+    auth_user_id = auth_user_id_column()
     transaction_id = Column(String, ForeignKey("transactions.id"), nullable=True)
     pattern = Column(String)  # e.g., "monthly", "weekly", "daily"
     frequency = Column(Integer, default=1)  # Every N periods
@@ -101,6 +119,7 @@ class Prediction(Base):
     
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), index=True)
+    auth_user_id = auth_user_id_column()
     type = Column(String, index=True)  # "cashflow", "runway", "anomaly", "budget"
     data = Column(String)  # JSON string with predictions
     generated_at = Column(DateTime, default=datetime.utcnow)
@@ -112,6 +131,7 @@ class CorrectionLog(Base):
 
     id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), index=True)
+    auth_user_id = auth_user_id_column()
     description = Column(String)
     merchant = Column(String, nullable=True)
     suggested_category = Column(String)
