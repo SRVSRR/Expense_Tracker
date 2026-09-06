@@ -128,6 +128,7 @@ class RecurringRuleCreate(RecurringRuleBase):
 class RecurringRule(RecurringRuleBase):
     id: str
     user_id: str
+    transaction_id: Optional[str] = None
     last_matched: Optional[datetime] = None
     created_at: datetime
     

@@ -16,9 +16,24 @@ mobile and desktop repos will consume this API.
 The API is the core product. Prioritize API correctness, performance, and
 correctness over frontend UI concerns.
 
-## Current status (as of 2026-09-01)
+## Documentation consistency
 
-**Phases 1–5: COMPLETE (with API + caching)**
+- After every substantive implementation change or verification, update both
+  `TODO.md` and `AGENTS.md` so status, decisions, and remaining technical debt
+  stay synchronized.
+- Do not mark a checklist item complete based only on a manual smoke test;
+  record the verification separately until the corresponding automated test or
+  acceptance criteria are satisfied.
+- The detailed P0 sequence and acceptance criteria live in
+  `docs/P0_PLAN.md`; keep it aligned with this file and `TODO.md`.
+- For P0, transaction `type` and `account_id` are intentionally immutable in
+  transaction updates. Do not add partial support that can leave two account
+  balances inconsistent; a future atomic transfer/type-change feature must be
+  planned separately.
+
+## Current status (as of 2026-09-06)
+
+**Phases 1–6: COMPLETE (with API + caching + P0 test coverage)**
 
 Completed:
 - **Phase 1 (Foundation)**: Full CRUD for accounts, transactions, categories — all scoped to authenticated user via JWT
@@ -28,6 +43,7 @@ Completed:
 - **Phase 4 (Rule-based categorization)**: `/api/categorize/suggest` with keyword matching + fallback
 - **Phase 5 (ML categorization)**: `backend/app/ml/categorizer.py` — LightGBM classifier with TF-IDF features; model train via `/api/categorize/train`; confidence threshold 0.55 fallback; model info endpoint
 - **Phase 6 upgrade (prediction caching)**: `/api/forecast/*` and `/api/budget/*` endpoints now read from `predictions` table with TTL caching (24h/12h/24h/7d); `invalidate_predictions()` called on transaction create/update/delete
+- **P0 Test Infrastructure**: Isolated async integration-test fixtures with in-memory SQLite, auth helpers, 72 automated integration tests passing
 
 Not done (ML upgrade):
 - LightGBM regressors for income/expense forecasting.
@@ -36,6 +52,8 @@ Not done (ML upgrade):
 - Confidence ranges in the chart.
 
 **Prediction caching**: all forecast/budget endpoints read from `predictions` table with TTL; transaction create/update/delete invalidates cache
+
+**P0 Complete**: All integration tests for auth/user isolation, CRUD + balance effects, forecast/budget/cache invalidation, category parent ownership validation, and transaction edit policy (`type`/`account_id` immutable) are passing.
 
 ## Tech stack (API-only)
 
@@ -178,12 +196,24 @@ Completed:
 
 Deferred until further notice.
 
+## Incremental Commits (P0 Implementation)
+
+| Date | Commit | Description |
+|---|---|---|
+| 2026-09-06 | Test infrastructure | Added `backend/tests/conftest.py` with async fixtures: in-memory SQLite, `db_session`, `client` with ASGITransport, `register_user`, `auth_user`/`second_user`, `auth_client`/`second_client`, `create_account`/`create_account_second`/`create_account_direct` |
+| 2026-09-06 | Auth & isolation tests | Created `backend/tests/test_auth_integration.py` with 14 tests: registration (201/duplicate 400), login (token/wrong password 401), protected endpoints (401/me), user isolation (accounts, transactions, categories, recurring rules all return 404 for foreign users, scoped lists return only own data) |
+| 2026-09-06 | CRUD tests | Created `backend/tests/test_crud_integration.py` with 35 tests: accounts (create/list/get/update/delete/ownership), transactions (income/expense create, filters, get, amount update adjusts balance, metadata no balance change, type/account_id immutable, delete reverses balance, 404 missing/foreign account), categories (defaults seeded, create/list/get/update/delete, parent_id same-user OK, foreign parent_id 404 create/update, ownership), recurring rules (create linked to own tx, reject foreign tx, list/delete, ownership, upcoming expansion) |
+| 2026-09-06 | Forecast/budget/cache tests | Created `backend/tests/test_forecast_budget_integration.py` with 23 tests: forecast endpoints (cashflow/runway/anomalies shape + isolation), budget endpoints (recommendations/category-analysis shape + isolation), cache (read/write, TTL behavior for cashflow/runway/anomaly/budget), invalidation (tx create/update/delete, account create/update/delete, recurring create/delete all invalidate), cross-user cache isolation |
+| 2026-09-06 | Category parent_id validation | Modified `backend/app/routes/categories.py`: added parent_id ownership check in `create_category` and `update_category` — returns 404 if parent belongs to another user |
+| 2026-09-06 | RecurringRule schema fix | Added `transaction_id: Optional[str] = None` to `RecurringRule` response schema in `backend/app/schemas/__init__.py` |
+| 2026-09-06 | Route trailing slashes | Updated test endpoints to use trailing slashes (`/api/accounts/`, `/api/transactions/`, `/api/categories/`, `/api/recurring/`) to avoid 307 redirects |
+| 2026-09-06 | Documentation | Updated `TODO.md` (all P0 items ✅, verification log) and `AGENTS.md` (current status, what's next) |
+
 ## What to do next (priority order)
 
-1. **Complete API test suite** — ensure all endpoints return correct responses
-2. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres
-3. **Add OpenAPI/schema docs** — generate `/docs` and `/redoc` for API consumers
-4. **Write integration tests** — test all API endpoints against a test database
+1. **Switch to Supabase** — When ready for production: swap auth to Supabase Auth, swap DB to Supabase Postgres
+2. **Add OpenAPI/schema docs** — generate `/docs` and `/redoc` for API consumers
+3. **ML upgrade** — Add LightGBM regressors for forecasting (P2)
 
 ## Conventions the agent must follow throughout
 

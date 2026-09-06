@@ -2,16 +2,38 @@
 
 Status: API foundation exists; correctness and operational work is in progress.
 
+Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs/P0_PLAN.md).
+
+## Verification log
+
+- **2026-09-05**: Live authenticated smoke test passed for account creation
+	with an initial balance, income and expense transactions, transaction type
+	filtering, amount update, deletion reversal, and resulting account balances.
+	This does not replace the pending automated integration-test work below.
+
+- **2026-09-06**: Full P0 test suite passes (72 tests). All integration tests for auth,
+	user isolation, CRUD operations, balance effects, forecast/budget endpoints,
+	cache invalidation, and category parent ownership validation are green.
+
 ## P0 - Make the current API trustworthy
 
 - [x] Keep account balances consistent when transactions are created, updated, or deleted.
 - [x] Reject recurring rules that reference another user's transaction.
 - [x] Invalidate derived predictions after account and recurring-rule mutations.
-- [ ] Add integration tests for registration, login, auth failures, and user isolation.
-- [ ] Add integration tests for account, transaction, category, and recurring CRUD.
-- [ ] Add integration tests for forecast, budget, and cache invalidation behavior.
-- [ ] Validate category ownership when creating or updating `parent_id`.
-- [ ] Decide whether transaction edits may change type/account; if supported, update both affected balances atomically.
+- [x] Add integration tests for registration, login, auth failures, and user isolation.
+- [x] Add integration tests for account, transaction, category, and recurring CRUD.
+- [x] Add integration tests for forecast, budget, and cache invalidation behavior.
+- [x] Validate category ownership when creating or updating `parent_id`.
+- [x] Enforce the documented transaction edit policy: `type` and `account_id` remain immutable during transaction updates; amount and metadata edits remain supported.
+
+### P0 implementation sequence
+
+1. Add isolated async integration-test fixtures and authentication helpers.
+2. Cover registration, login, auth failures, and cross-user isolation.
+3. Cover account, transaction, category, and recurring CRUD plus balance effects.
+4. Add category parent ownership validation and negative tests.
+5. Cover forecast, budget, prediction caching, and invalidation behavior.
+6. Run the full suite and update this verification log with the result.
 
 ## P1 - Finish documented functionality
 

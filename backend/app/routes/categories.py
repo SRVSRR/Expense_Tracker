@@ -17,6 +17,15 @@ async def create_category(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if cat_data.parent_id:
+        result = await db.execute(
+            select(Category).where(
+                Category.id == cat_data.parent_id, Category.user_id == current_user.id
+            )
+        )
+        if not result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Parent category not found")
+
     category = Category(
         id=generate_uuid(),
         user_id=current_user.id,
@@ -77,6 +86,15 @@ async def update_category(
         raise HTTPException(status_code=404, detail="Category not found")
 
     update_data = cat_data.model_dump(exclude_unset=True)
+    if "parent_id" in update_data and update_data["parent_id"]:
+        result = await db.execute(
+            select(Category).where(
+                Category.id == update_data["parent_id"], Category.user_id == current_user.id
+            )
+        )
+        if not result.scalar_one_or_none():
+            raise HTTPException(status_code=404, detail="Parent category not found")
+
     for field, value in update_data.items():
         setattr(category, field, value)
 

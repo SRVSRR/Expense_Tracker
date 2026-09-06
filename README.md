@@ -174,6 +174,8 @@ backend/venv/bin/python -m compileall -q backend/app backend/tests
 
 Tests currently cover balance application/reversal and monthly recurring-date expansion. The integration-test suite is still being built; see [TODO.md](TODO.md).
 
+The P0 implementation sequence and acceptance criteria are documented in [docs/P0_PLAN.md](docs/P0_PLAN.md).
+
 For a clean local reset, stop the server and remove the ignored SQLite database, then restart:
 
 ```sh
