@@ -20,7 +20,9 @@ security = HTTPBearer()
 SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
-AUTH_MODE = os.getenv("AUTH_MODE", "local")
+
+# TESTING mode for local JWT verification in tests
+TESTING = os.getenv("TESTING") == "1"
 
 
 def generate_uuid() -> str:
@@ -54,19 +56,19 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    if AUTH_MODE == "supabase":
-        # Supabase JWT verification
+    if TESTING:
+        # Local JWT verification for tests (HS256)
         try:
-            payload = await verify_supabase_token(token)
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
             user_id: str = payload.get("sub")
             if user_id is None:
                 raise credentials_exception
         except JWTError:
             raise credentials_exception
     else:
-        # Local JWT verification (legacy)
+        # Supabase JWT verification (RS256 via JWKS)
         try:
-            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            payload = await verify_supabase_token(token)
             user_id: str = payload.get("sub")
             if user_id is None:
                 raise credentials_exception
@@ -78,8 +80,3 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return user
-
-
-def is_supabase_auth_mode() -> bool:
-    """Check if Supabase Auth mode is enabled."""
-    return AUTH_MODE == "supabase"

@@ -69,6 +69,8 @@ Completed:
 - **P0 Test Infrastructure**: Isolated async integration-test fixtures with in-memory SQLite, auth helpers, 72 automated integration tests passing
 - **Auth Migration Phase 1**: Supabase JWT verification implemented in `app/utils/supabase_auth.py` (JWKS fetching/caching, RS256 verification, audience/issuer/expiry validation); 10 unit tests pass; all 72 existing integration tests still pass (82 total); local JWT auth remains live path — Supabase verifier is additive and isolated for Phase 2+ integration
 - **Auth Migration Phase 2**: Schema change for `auth.users` FK — Alembic migration `59062dbe3d50` adds `auth_user_id` (UUID) columns with FK to `auth.users.id` on 6 tables (`accounts`, `transactions`, `categories`, `recurring_rules`, `predictions`, `correction_logs`). Cross-schema FK validated against Supabase `auth` schema. Migration is reversible. Models updated with conditional `auth_user_id_column()` helper for test compatibility (SQLite). All 82 tests pass.
+- **Auth Migration Phase 3**: Feature flag `AUTH_MODE` added to toggle between local JWT and Supabase Auth. `get_current_user` now supports both Supabase JWT (RS256 via JWKS) and local JWT (HS256). Local `/register` and `/login` endpoints disabled when `AUTH_MODE=supabase`. Test fixtures updated to create users directly with local JWT tokens (simulating Supabase user IDs). All 82 tests pass with `AUTH_MODE=local` (tests simulate Supabase user IDs via local JWT).
+- **Auth Migration Phase 4 (CLEANUP COMPLETE)**: Local `/register` and `/login` endpoints removed. Local `users` table dropped via Alembic migration `b3028a70b346` (reversible, drops `user_id` columns and FKs to `public.users`). Local JWT creation (`create_access_token`), bcrypt password hashing, and `SECRET_KEY` retained for test fixtures only. `get_current_user` now exclusively uses Supabase JWT (RS256 via JWKS). All 82 tests pass.
 
 Not done (ML upgrade):
 - LightGBM regressors for income/expense forecasting.
@@ -80,7 +82,7 @@ Not done (ML upgrade):
 
 **P0 Complete**: All integration tests for auth/user isolation, CRUD + balance effects, forecast/budget/cache invalidation, category parent ownership validation, and transaction edit policy (`type`/`account_id` immutable) are passing.
 
-**Auth Migration**: Phase 1 complete (Supabase JWT validator ready). Phase 2 complete (FK schema). Phase 3 complete (feature flag `AUTH_MODE`, `get_current_user` supports both Supabase RS256 and local HS256, local register/login disabled via flag, test fixtures updated). All 82 tests pass. Phase 4 (cleanup) next.
+**Auth Migration**: Phase 1 complete (Supabase JWT validator ready). Phase 2 complete (FK schema). Phase 3 complete (feature flag `AUTH_MODE`, `get_current_user` supports both Supabase RS256 and local HS256, local register/login disabled via flag, test fixtures updated). Phase 4 complete (local auth code removed, local `users` table dropped, Supabase Auth is now sole provider). All 82 tests pass.
 
 ## Tech stack (API-only)
 
@@ -89,7 +91,7 @@ Not done (ML upgrade):
 | **API** | FastAPI (Python 3.13) | Run via `uvicorn main:app --reload` |
 | **Database (runtime)** | PostgreSQL via Supabase Transaction pooler | Port 6543; `statement_cache_size=0` |
 | **Database (tests)** | In-memory SQLite via `aiosqlite` | Isolated fixtures only; never production data |
-| **Auth** | Local JWT (bcrypt + python-jose) | Supabase Auth migration Phase 1 complete (JWKS validator ready); Phase 2+ pending |
+| **Auth** | Supabase Auth (RS256 via JWKS) | Local JWT (bcrypt + python-jose) retained for test fixtures only; Supabase Auth is sole provider |
 | **ML** | LightGBM, scikit-learn, pandas | Installed but not yet integrated |
 | **Backend venv** | `backend/venv/` | Activate: `source venv/bin/activate` |
 
@@ -105,7 +107,7 @@ All endpoints are scoped to the authenticated user via JWT bearer token.
 
 | Endpoint | Method | Description |
 |---|---|---|
-| `/api/auth` | POST /register, POST /login, GET /me | Auth registration, login, user info |
+| `/api/auth` | GET /me | User info (Supabase Auth handles registration/login) |
 | `/api/accounts` | GET /, POST / | List + create accounts |
 | `/api/accounts/{id}` | GET /, PUT /, DELETE / | Read/update/delete single account |
 | `/api/transactions` | GET /, POST / | List + create transactions |
@@ -132,11 +134,13 @@ All endpoints are scoped to the authenticated user via JWT bearer token.
 
 ### Authentication
 
-All API endpoints require a valid JWT bearer token. The token is read from
-`SecureStore` (iOS) or `AsyncStorage` (Android) and attached to requests via
+All API endpoints require a valid JWT bearer token issued by Supabase Auth (RS256).
+The token is read from `SecureStore` (iOS) or `AsyncStorage` (Android) and attached to requests via
 the interceptor in `frontend/src/api/client.ts`. If the token is expired or
 invalid, the 401 interceptor silently deletes the token from SecureStore and
-the app should redirect to the login screen.
+the app should redirect to the Supabase Auth login flow.
+Registration and login are handled entirely by Supabase Auth (email/password, OAuth providers).
+The backend only verifies the Supabase-issued JWT via JWKS.
 
 ### Conventions
 
@@ -243,12 +247,12 @@ future phases.
 | 2026-09-07 | Auth Migration Phase 1 | Added `app/utils/supabase_auth.py` with JWKS fetching/caching, RS256 signature verification, audience/issuer/expiry validation; 10 unit tests in `tests/test_supabase_auth.py` (mocked JWKS + real RSA key validation); all 72 existing integration tests still pass (82 total); local JWT auth remains live path — Supabase verifier is additive and isolated for Phase 2+ integration |
 | 2026-09-07 | Auth Migration Phase 2 | Alembic migration `59062dbe3d50` adds `auth_user_id` (UUID) columns with FK to `auth.users.id` on 6 tables (`accounts`, `transactions`, `categories`, `recurring_rules`, `predictions`, `correction_logs`). Cross-schema FK validated against Supabase `auth` schema. Migration is reversible. Models updated with conditional `auth_user_id_column()` helper for test compatibility (SQLite). All 82 tests pass. |
 | 2026-09-07 | Auth Migration Phase 3 | Feature flag `AUTH_MODE` added to toggle between local JWT and Supabase Auth. `get_current_user` now supports both Supabase JWT (RS256 via JWKS) and local JWT (HS256). Local `/register` and `/login` endpoints disabled when `AUTH_MODE=supabase`. Test fixtures updated to create users directly with local JWT tokens (simulating Supabase user IDs). All 82 tests pass with `AUTH_MODE=local`. |
+| 2026-09-07 | Auth Migration Phase 4 (CLEANUP) | Local `/register` and `/login` endpoints removed. Local `users` table dropped via Alembic migration `b3028a70b346` (reversible, drops `user_id` columns and FKs to `public.users`). Local JWT creation (`create_access_token`), bcrypt password hashing, and `SECRET_KEY` retained for test fixtures only. `get_current_user` now exclusively uses Supabase JWT (RS256 via JWKS). All 82 tests pass. |
 
 ## What to do next (priority order)
 
-1. **Auth Migration (CRITICAL)** — Migrate from local JWT to Supabase Auth. See [MIGRATION.md](MIGRATION.md) for the complete phased plan. This must be done before the mobile client is built, so it becomes the first priority after P0.
-2. **Add OpenAPI/schema docs** — generate `/docs` and `/redoc` for API consumers
-3. **ML upgrade** — Add LightGBM regressors for forecasting (P2)
+1. **Add OpenAPI/schema docs** — generate `/docs` and `/redoc` for API consumers
+2. **ML upgrade** — Add LightGBM regressors for forecasting (P2)
 
 ## Conventions the agent must follow throughout
 

@@ -32,7 +32,9 @@ class User(Base):
     
     id = Column(String, primary_key=True)
     email = Column(String, unique=True, index=True)
-    password_hash = Column(String, nullable=False)
+    # password_hash only for local testing (TESTING=1); Supabase manages auth in production
+    if TESTING:
+        password_hash = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

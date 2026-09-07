@@ -15,22 +15,22 @@ Do not open public issues for security vulnerabilities. We will acknowledge rece
 ## Security Measures
 
 ### Authentication
-- JWT tokens with HS256 algorithm
-- Tokens expire after 24 hours (configurable via `ACCESS_TOKEN_EXPIRE_MINUTES`)
-- Passwords hashed with bcrypt (cost factor 12)
+- JWT tokens with RS256 algorithm (verified via Supabase JWKS)
+- Tokens issued and managed by Supabase Auth
+- Supabase handles password hashing (bcrypt), token issuance, and refresh
 - Tokens transmitted only over HTTPS in production
-- **JWT secret rotation**: not yet implemented; rotating `SECRET_KEY` currently invalidates all active sessions
+- JWT secret rotation handled by Supabase (automatic key rotation)
 
 ### Authorization
-- All API endpoints require valid JWT bearer token
-- User-scoped queries: every database query filters by `user_id`
+- All API endpoints require valid JWT bearer token (Supabase-issued)
+- User-scoped queries: every database query filters by `auth_user_id`
 - Cross-user access attempts return 404 (not 403) to avoid user enumeration
 
 ### Data Protection
 - No sensitive data in logs (passwords, tokens filtered)
 - SQLite dev database excluded from version control
 - Production uses PostgreSQL via Supabase with TLS
-- Environment variables for secrets (`SECRET_KEY`, `DATABASE_URL`)
+- Environment variables for secrets (`SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`, `DATABASE_URL`)
 - Supabase transaction-pooler connections disable asyncpg prepared-statement caching; database credentials remain local or in the hosting provider's secret store
 
 ### API Security
@@ -39,28 +39,27 @@ Do not open public issues for security vulnerabilities. We will acknowledge rece
 - SQL injection prevention via SQLAlchemy ORM (parameterized queries)
 - Rate limiting: not yet implemented (planned for P3)
 
-### Email Enumeration Trade-off
-**Known gap**: `POST /api/auth/register` returns `400 "Email already registered"` when an email exists, which allows account enumeration. This is a deliberate trade-off for UX (immediate feedback vs. "check your email" flow). A future improvement would unify the response and rely on the login/forgot-password flow to confirm existence.
+### Email Enumeration
+**Supabase Auth handles registration**: Supabase's signup flow uses email verification and does not expose whether an email exists in the same way as a custom registration endpoint. The email enumeration trade-off from the previous local auth implementation no longer applies.
 
 ### Password Policy
-**Current**: Minimum 6 characters, no complexity requirements.  
-**Rationale**: Below NIST SP 800-63B guidance (8+ chars minimum). Chosen for low-friction dev/test onboarding. Production should enforce 8+ characters and check against breach lists (e.g., via `zxcvbn` or HaveIBeenPwned API).
+**Managed by Supabase Auth**: Supabase enforces secure password policies (minimum 8 characters by default, configurable). Local password handling has been removed; all authentication is delegated to Supabase Auth.
 
 ### ML Model Artifact Safety
 LightGBM models are saved to `backend/app/ml/saved_models/` via `joblib.dump`/`joblib.load` (not raw pickle). Model files are **only loaded from trusted, backend-controlled storage** — no user input influences the model path, and the directory is not writable by the web process in production. Treat model artifacts as code: do not accept model files from untrusted sources.
 
 ### Dependencies
-- `bcrypt` pinned to `<5` (v4.x compatible, v5.x breaks passlib)
+- `bcrypt` pinned to `<5` (v4.x compatible, v5.x breaks passlib) — still used for test fixtures
 - Regular dependency updates via `pip-audit` / Dependabot (planned for CI)
 
 ## Production Checklist
 
 Before deploying to production:
 
-- [ ] Generate strong `SECRET_KEY` (32+ random bytes)
-- [ ] Set `CORS_ORIGINS` to specific frontend domains (see [CORS configuration](#api-security))
+- [ ] Set `SUPABASE_JWKS_URL` and `SUPABASE_ISSUER` environment variables
+- [ ] Set `CORS_ORIGINS` to specific frontend domains
 - [ ] Enable HTTPS/TLS termination
-- [ ] Configure PostgreSQL with SSL mode
+- [ ] Configure PostgreSQL with SSL mode (Supabase Transaction Pooler)
 - [ ] Set up structured logging and monitoring
 - [ ] Enable rate limiting (e.g., slowapi)
 - [ ] Run `pip-audit` on dependencies
@@ -72,19 +71,21 @@ Before deploying to production:
 |--------|------------|
 | Token theft | Short expiry, HTTPS only, secure storage on clients |
 | SQL injection | SQLAlchemy ORM, no raw SQL |
-| User data leakage | All queries scoped by `user_id`, 404 for foreign resources |
-| Brute force | Not yet implemented (planned: rate limit / account lockout) |
-| Weak passwords | Min 6 chars enforced (see [Password Policy](#password-policy)), bcrypt hashing |
+| User data leakage | All queries scoped by `auth_user_id`, 404 for foreign resources |
+| Brute force | Supabase Auth handles rate limiting and account protection |
+| Weak passwords | Supabase Auth enforces password policies |
 | Secret exposure | `.env` in `.gitignore`, production secrets in vault |
 | ML model RCE | Models loaded only from trusted backend storage (see [ML Model Artifact Safety](#ml-model-artifact-safety)) |
-| Email enumeration | Registration endpoint leaks existence (see [Email Enumeration Trade-off](#email-enumeration-trade-off)) |
+| Email enumeration | Supabase Auth handles registration flow securely |
 
 ## Security-Related Configuration
 
 ```env
 # .env (development only)
-DATABASE_URL=sqlite+aiosqlite:///./expense_tracker.db
-SECRET_KEY=dev-secret-change-in-production
+DATABASE_URL=postgresql+asyncpg://postgres.<project-ref>:<password>@<pooler-host>:6543/postgres
+SUPABASE_JWKS_URL=https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json
+SUPABASE_ISSUER=https://<project-ref>.supabase.co/auth/v1
+SECRET_KEY=dev-secret-change-in-production  # only used for test tokens
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
 

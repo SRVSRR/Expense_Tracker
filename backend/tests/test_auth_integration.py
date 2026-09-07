@@ -4,52 +4,39 @@ from httpx import AsyncClient
 
 
 class TestRegistration:
-    """Tests for user registration."""
+    """Tests for user registration - Supabase Auth only (local endpoints removed)."""
 
-    async def test_register_returns_201_and_user_payload(self, client: AsyncClient):
+    async def test_register_returns_404(self, client: AsyncClient):
         response = await client.post(
             "/api/auth/register",
             json={"email": "newuser@example.com", "password": "password123"},
         )
-        assert response.status_code == 201
-        data = response.json()
-        assert "id" in data
-        assert data["email"] == "newuser@example.com"
-        assert "created_at" in data
-        assert "password_hash" not in data
-        assert "password" not in data
+        assert response.status_code == 404
 
-    async def test_duplicate_email_returns_400(self, client: AsyncClient, auth_user: dict):
-        email = auth_user["email"]
+    async def test_duplicate_email_returns_404(self, client: AsyncClient, auth_user: dict):
         response = await client.post(
             "/api/auth/register",
-            json={"email": email, "password": "differentpass"},
+            json={"email": auth_user["email"], "password": "differentpass"},
         )
-        assert response.status_code == 400
-        assert "already registered" in response.json()["detail"].lower()
+        assert response.status_code == 404
 
 
 class TestLogin:
-    """Tests for user login."""
+    """Tests for user login - Supabase Auth only (local endpoint removed)."""
 
-    async def test_login_returns_bearer_token(self, client: AsyncClient, auth_user: dict):
+    async def test_login_returns_404(self, client: AsyncClient, auth_user: dict):
         response = await client.post(
             "/api/auth/login",
             json={"email": auth_user["email"], "password": "testpassword"},
         )
-        assert response.status_code == 200
-        data = response.json()
-        assert "access_token" in data
-        assert data["token_type"] == "bearer"
-        assert "user_id" in data
+        assert response.status_code == 404
 
-    async def test_wrong_password_returns_401(self, client: AsyncClient, auth_user: dict):
+    async def test_wrong_password_returns_404(self, client: AsyncClient, auth_user: dict):
         response = await client.post(
             "/api/auth/login",
             json={"email": auth_user["email"], "password": "wrongpassword"},
         )
-        assert response.status_code == 401
-        assert "invalid" in response.json()["detail"].lower()
+        assert response.status_code == 404
 
 
 class TestProtectedEndpoints:
