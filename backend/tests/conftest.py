@@ -9,8 +9,6 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
-from jose import jwt
-from datetime import datetime, timedelta
 
 # Disable rate limiting in tests
 os.environ["TESTING"] = "1"
@@ -24,9 +22,8 @@ if str(backend_directory) not in sys.path:
 
 from main import app
 from app.db.database import get_db, Base
-from app.models import User
-from app.utils import generate_uuid, get_password_hash, create_access_token
-
+from app.models import Account
+from app.utils import generate_uuid
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -76,33 +73,35 @@ def auth_headers() -> dict:
     return _make
 
 
-async def create_test_user(db_session: AsyncSession, email: str = "test@example.com", password: str = "password123") -> dict:
-    """Create a test user directly in the database and return user data + token."""
-    user = User(
-        id=generate_uuid(),
-        email=email,
-        password_hash=get_password_hash(password),
-    )
+async def create_test_user(db_session: AsyncSession, email: str = None) -> dict:
+    """Create a test user ID (simulating Supabase user ID) and return user data + token."""
+    user_id = generate_uuid()
+    if email is None:
+        email = f"test-{user_id}@example.com"
+    from app.models import User
+    from app.utils import get_password_hash
+    user = User(id=user_id, email=email, password_hash=get_password_hash("testpassword"))
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
     # Seed default categories for the new user
     from app.services.seed import seed_categories
-    await seed_categories(user.id, db_session)
-    token = create_access_token(data={"sub": user.id})
-    return {"user": user, "token": token, "email": email, "password": password}
+    await seed_categories(user_id, db_session)
+    from app.utils import create_access_token
+    token = create_access_token(data={"sub": user_id})
+    return {"user_id": user_id, "token": token, "email": email}
 
 
 @pytest_asyncio.fixture
 async def auth_user(db_session: AsyncSession) -> dict:
-    """Create and authenticate a user directly in the database."""
+    """Create and authenticate a test user."""
     return await create_test_user(db_session)
 
 
 @pytest_asyncio.fixture
 async def second_user(db_session: AsyncSession) -> dict:
-    """Create a second authenticated user directly in the database."""
-    return await create_test_user(db_session, email="other@example.com", password="password123")
+    """Create a second authenticated test user with unique email."""
+    return await create_test_user(db_session, email=f"second-user-{generate_uuid()}@example.com")
 
 
 @pytest_asyncio.fixture
@@ -154,11 +153,10 @@ async def create_account_second(second_client: AsyncClient) -> callable:
 @pytest_asyncio.fixture
 async def create_account_direct(db_session: AsyncSession, auth_user: dict) -> callable:
     """Create an account directly in the database for the authenticated user."""
-    from app.models import Account
     async def _create(name: str = "Test Account", initial_balance: float = 100.0):
         account = Account(
             id=generate_uuid(),
-            user_id=auth_user["user"]["id"],
+            auth_user_id=auth_user["user_id"],
             name=name,
             currency="USD",
             initial_balance=initial_balance,

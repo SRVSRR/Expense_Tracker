@@ -15,33 +15,32 @@ Base = declarative_base()
 TESTING = os.getenv("TESTING") == "1"
 
 def auth_user_id_column():
-    """Return auth_user_id column for production, or None for tests."""
+    """Return auth_user_id column for production, or String column for tests."""
     if TESTING:
-        return None
+        # SQLite doesn't support UUID, use String for testing
+        return Column(String, nullable=True, index=True)
     return Column(UUID(as_uuid=False), ForeignKey("auth.users.id"), nullable=True, index=True)
-
-Base = declarative_base()
 
 
 class User(Base):
+    """Minimal user model for Supabase auth.users lookup."""
     __tablename__ = "users"
+    
+    # Only use auth schema in production (not tests)
+    if not TESTING:
+        __table_args__ = {"schema": "auth"}
     
     id = Column(String, primary_key=True)
     email = Column(String, unique=True, index=True)
     password_hash = Column(String, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationships
-    accounts = relationship("Account", back_populates="user")
-    transactions = relationship("Transaction", back_populates="user")
 
 
 class Account(Base):
     __tablename__ = "accounts"
     
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), index=True)
     auth_user_id = auth_user_id_column()
     name = Column(String, index=True)
     currency = Column(String, default="USD")
@@ -51,7 +50,6 @@ class Account(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    user = relationship("User", back_populates="accounts")
     transactions = relationship("Transaction", back_populates="account")
 
 
@@ -64,7 +62,6 @@ class Transaction(Base):
     __tablename__ = "transactions"
     
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), index=True)
     auth_user_id = auth_user_id_column()
     account_id = Column(String, ForeignKey("accounts.id"), index=True)
     type = Column(SQLEnum(TransactionType), index=True)
@@ -78,7 +75,6 @@ class Transaction(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    user = relationship("User", back_populates="transactions")
     account = relationship("Account", back_populates="transactions")
 
 
@@ -86,7 +82,6 @@ class Category(Base):
     __tablename__ = "categories"
     
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), index=True)
     auth_user_id = auth_user_id_column()
     name = Column(String, index=True)
     parent_id = Column(String, ForeignKey("categories.id"), nullable=True)
@@ -103,7 +98,6 @@ class RecurringRule(Base):
     __tablename__ = "recurring_rules"
     
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), index=True)
     auth_user_id = auth_user_id_column()
     transaction_id = Column(String, ForeignKey("transactions.id"), nullable=True)
     pattern = Column(String)  # e.g., "monthly", "weekly", "daily"
@@ -118,7 +112,6 @@ class Prediction(Base):
     __tablename__ = "predictions"
     
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), index=True)
     auth_user_id = auth_user_id_column()
     type = Column(String, index=True)  # "cashflow", "runway", "anomaly", "budget"
     data = Column(String)  # JSON string with predictions
@@ -130,7 +123,6 @@ class CorrectionLog(Base):
     __tablename__ = "correction_logs"
 
     id = Column(String, primary_key=True)
-    user_id = Column(String, ForeignKey("users.id"), index=True)
     auth_user_id = auth_user_id_column()
     description = Column(String)
     merchant = Column(String, nullable=True)

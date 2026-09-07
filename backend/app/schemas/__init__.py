@@ -24,7 +24,7 @@ class CategoryCreate(CategoryBase):
 
 class Category(CategoryBase):
     id: str
-    user_id: str
+    auth_user_id: str
     created_at: datetime
     
     class Config:
@@ -49,7 +49,7 @@ class AccountUpdate(BaseModel):
 
 class Account(AccountBase):
     id: str
-    user_id: str
+    auth_user_id: str
     current_balance: float
     created_at: datetime
     updated_at: datetime
@@ -83,7 +83,7 @@ class TransactionUpdate(BaseModel):
 
 class Transaction(TransactionBase):
     id: str
-    user_id: str
+    auth_user_id: str
     account_id: str
     created_at: datetime
     updated_at: datetime
@@ -127,7 +127,7 @@ class RecurringRuleCreate(RecurringRuleBase):
 
 class RecurringRule(RecurringRuleBase):
     id: str
-    user_id: str
+    auth_user_id: str
     transaction_id: Optional[str] = None
     last_matched: Optional[datetime] = None
     created_at: datetime
@@ -143,7 +143,7 @@ class PredictionBase(BaseModel):
 
 class Prediction(PredictionBase):
     id: str
-    user_id: str
+    auth_user_id: str
     generated_at: datetime
     valid_until: datetime
     

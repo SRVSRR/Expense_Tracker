@@ -24,7 +24,6 @@ router = APIRouter()
 @router.post("/register", response_model=UserSchema, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
 async def register(request: Request, user_data: UserCreate, db: AsyncSession = Depends(get_db)):
-    # Local registration disabled in Supabase Auth mode
     if is_supabase_auth_mode():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -56,7 +55,6 @@ async def register(request: Request, user_data: UserCreate, db: AsyncSession = D
 @router.post("/login")
 @limiter.limit("10/minute")
 async def login(request: Request, user_data: UserLogin, db: AsyncSession = Depends(get_db)):
-    # Local login disabled in Supabase Auth mode
     if is_supabase_auth_mode():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

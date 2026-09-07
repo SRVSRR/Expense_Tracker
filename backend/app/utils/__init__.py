@@ -14,13 +14,13 @@ from app.db.database import get_db
 from app.models import User
 from app.utils.supabase_auth import verify_supabase_token
 
+security = HTTPBearer()
+
+# For tests - local JWT creation (HS256)
 SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
-# Feature flag: set to "supabase" to use Supabase Auth, "local" for local JWT
 AUTH_MODE = os.getenv("AUTH_MODE", "local")
-
-security = HTTPBearer()
 
 
 def generate_uuid() -> str:
@@ -36,6 +36,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Create a local JWT token (for testing only)."""
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})

@@ -33,7 +33,7 @@ async def seed_categories(user_id: str, db: AsyncSession) -> None:
     Skips any categories that already exist for this user (idempotent).
     """
     existing = await db.execute(
-        select(Category.name).where(Category.user_id == user_id)
+        select(Category.name).where(Category.auth_user_id == user_id)
     )
     existing_names = {row[0] for row in existing.all()}
 
@@ -42,7 +42,7 @@ async def seed_categories(user_id: str, db: AsyncSession) -> None:
             continue
         db.add(Category(
             id=generate_uuid(),
-            user_id=user_id,
+            auth_user_id=user_id,
             name=name,
             type=cat_type,
             color=color,

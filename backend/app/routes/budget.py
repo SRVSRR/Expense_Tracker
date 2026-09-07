@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from datetime import datetime, timedelta
 
 from app.db.database import get_db
-from app.models import Transaction, Account, User
+from app.models import Transaction, Account
 from app.utils import get_current_user
 from app.services.prediction_cache import get_cached_prediction, store_prediction
 from app.schemas import BudgetRecommendations, CategoryAnalysis
@@ -19,7 +19,7 @@ async def _compute_recommendations(db: AsyncSession, user_id: str) -> dict:
 
     result = await db.execute(
         select(Transaction).where(
-            Transaction.user_id == user_id,
+            Transaction.auth_user_id == user_id,
             Transaction.date >= three_months_ago,
         )
     )
@@ -79,7 +79,7 @@ async def _compute_category_analysis(db: AsyncSession, user_id: str) -> dict:
 
     result = await db.execute(
         select(Transaction).where(
-            Transaction.user_id == user_id,
+            Transaction.auth_user_id == user_id,
             Transaction.date >= three_months_ago,
         )
     )
@@ -136,7 +136,7 @@ async def _compute_category_analysis(db: AsyncSession, user_id: str) -> dict:
 )
 async def get_budget_recommendations(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     """Budget recommendations — cached in predictions table (7-day TTL)."""
     cached = await get_cached_prediction(db, current_user.id, "budget")
@@ -160,7 +160,7 @@ async def get_budget_recommendations(
 )
 async def analyze_category_spending(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     """Category spending analysis — cached (7-day TTL, same cache key as budget)."""
     cached = await get_cached_prediction(db, current_user.id, "budget_analysis")

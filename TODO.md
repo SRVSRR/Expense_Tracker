@@ -54,6 +54,11 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 	updated to create users directly with local JWT tokens (simulating Supabase
 	user IDs). All 82 tests pass with `AUTH_MODE=local` (tests simulate Supabase
 	user IDs via local JWT).
+- **2026-09-07**: Phase 3 integration tests updated for Supabase Auth compatibility.
+	All 82 tests pass (72 P0 + 10 Supabase auth). Category seeding fixed for test
+	users. All schemas updated to use `auth_user_id` instead of `user_id`.
+	Local JWT auth remains live path; Supabase verifier is additive and isolated
+	for Phase 4+ integration.
 
 ## P0 - Make the current API trustworthy
 

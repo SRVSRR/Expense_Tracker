@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import List
 
 from app.db.database import get_db
-from app.models import RecurringRule, Transaction, Account, User
+from app.models import RecurringRule, Transaction, Account
 from app.schemas import (
     RecurringRuleCreate,
     RecurringRule as RecurringRuleSchema,
@@ -33,13 +33,13 @@ router = APIRouter()
 async def create_recurring_rule(
     data: RecurringRuleCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     if data.transaction_id:
         transaction_result = await db.execute(
             select(Transaction).where(
                 Transaction.id == data.transaction_id,
-                Transaction.user_id == current_user.id,
+                Transaction.auth_user_id == current_user.id,
             )
         )
         if transaction_result.scalar_one_or_none() is None:
@@ -47,7 +47,7 @@ async def create_recurring_rule(
 
     rule = RecurringRule(
         id=generate_uuid(),
-        user_id=current_user.id,
+        auth_user_id=current_user.id,
         transaction_id=data.transaction_id,
         pattern=data.pattern,
         frequency=data.frequency,
@@ -73,11 +73,11 @@ async def create_recurring_rule(
 )
 async def list_recurring_rules(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     result = await db.execute(
         select(RecurringRule)
-        .where(RecurringRule.user_id == current_user.id)
+        .where(RecurringRule.auth_user_id == current_user.id)
         .order_by(RecurringRule.expected_date.asc())
     )
     return result.scalars().all()
@@ -96,7 +96,7 @@ async def list_recurring_rules(
 async def get_upcoming_transactions(
     days: int = Query(default=30, ge=1, le=365, description="Number of days to look ahead"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     now = datetime.utcnow()
     end = now + timedelta(days=days)
@@ -104,7 +104,7 @@ async def get_upcoming_transactions(
     result = await db.execute(
         select(RecurringRule)
         .where(
-            RecurringRule.user_id == current_user.id,
+            RecurringRule.auth_user_id == current_user.id,
             RecurringRule.expected_date >= now,
             RecurringRule.expected_date <= end,
         )
@@ -174,12 +174,12 @@ def _days_in_month(year: int, month: int) -> int:
 async def delete_recurring_rule(
     rule_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     result = await db.execute(
         select(RecurringRule).where(
             RecurringRule.id == rule_id,
-            RecurringRule.user_id == current_user.id,
+            RecurringRule.auth_user_id == current_user.id,
         )
     )
     rule = result.scalar_one_or_none()

@@ -35,7 +35,7 @@ class TestLogin:
     async def test_login_returns_bearer_token(self, client: AsyncClient, auth_user: dict):
         response = await client.post(
             "/api/auth/login",
-            json={"email": auth_user["email"], "password": "password123"},
+            json={"email": auth_user["email"], "password": "testpassword"},
         )
         assert response.status_code == 200
         data = response.json()
@@ -63,7 +63,7 @@ class TestProtectedEndpoints:
         response = await auth_client.get("/api/auth/me")
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == auth_user["user"].id
+        assert data["id"] == auth_user["user_id"]
         assert data["email"] == auth_user["email"]
 
 

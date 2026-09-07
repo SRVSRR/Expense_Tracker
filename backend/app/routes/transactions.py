@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional
 
 from app.db.database import get_db
-from app.models import Transaction, TransactionType, Account, User
+from app.models import Transaction, TransactionType, Account
 from app.schemas import (
     TransactionCreate,
     TransactionUpdate,
@@ -36,11 +36,11 @@ def apply_transaction_balance(
 async def create_transaction(
     tx_data: TransactionCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     result = await db.execute(
         select(Account).where(
-            Account.id == tx_data.account_id, Account.user_id == current_user.id
+            Account.id == tx_data.account_id, Account.auth_user_id == current_user.id
         )
     )
     account = result.scalar_one_or_none()
@@ -49,7 +49,7 @@ async def create_transaction(
 
     transaction = Transaction(
         id=generate_uuid(),
-        user_id=current_user.id,
+        auth_user_id=current_user.id,
         account_id=tx_data.account_id,
         type=tx_data.type,
         amount=tx_data.amount,
@@ -72,7 +72,7 @@ async def create_transaction(
 @router.get("/", response_model=list[TransactionSchema])
 async def list_transactions(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
     account_id: Optional[str] = None,
     type: Optional[str] = None,
     category: Optional[str] = None,
@@ -81,7 +81,7 @@ async def list_transactions(
     limit: int = Query(default=50, le=200),
     offset: int = Query(default=0, ge=0),
 ):
-    query = select(Transaction).where(Transaction.user_id == current_user.id)
+    query = select(Transaction).where(Transaction.auth_user_id == current_user.id)
 
     if account_id:
         query = query.where(Transaction.account_id == account_id)
@@ -103,12 +103,12 @@ async def list_transactions(
 async def get_transaction(
     transaction_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     result = await db.execute(
         select(Transaction).where(
             Transaction.id == transaction_id,
-            Transaction.user_id == current_user.id,
+            Transaction.auth_user_id == current_user.id,
         )
     )
     transaction = result.scalar_one_or_none()
@@ -122,12 +122,12 @@ async def update_transaction(
     transaction_id: str,
     tx_data: TransactionUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     result = await db.execute(
         select(Transaction).where(
             Transaction.id == transaction_id,
-            Transaction.user_id == current_user.id,
+            Transaction.auth_user_id == current_user.id,
         )
     )
     transaction = result.scalar_one_or_none()
@@ -139,7 +139,7 @@ async def update_transaction(
         account_result = await db.execute(
             select(Account).where(
                 Account.id == transaction.account_id,
-                Account.user_id == current_user.id,
+                Account.auth_user_id == current_user.id,
             )
         )
         account = account_result.scalar_one_or_none()
@@ -160,12 +160,12 @@ async def update_transaction(
 async def delete_transaction(
     transaction_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     result = await db.execute(
         select(Transaction).where(
             Transaction.id == transaction_id,
-            Transaction.user_id == current_user.id,
+            Transaction.auth_user_id == current_user.id,
         )
     )
     transaction = result.scalar_one_or_none()
@@ -175,7 +175,7 @@ async def delete_transaction(
     account_result = await db.execute(
         select(Account).where(
             Account.id == transaction.account_id,
-            Account.user_id == current_user.id,
+            Account.auth_user_id == current_user.id,
         )
     )
     account = account_result.scalar_one_or_none()

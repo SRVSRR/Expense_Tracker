@@ -5,7 +5,7 @@ from sqlalchemy import select
 from typing import Optional
 
 from app.db.database import get_db
-from app.models import CorrectionLog, User
+from app.models import CorrectionLog
 from app.services.categorize import get_all_categories
 from app.ml.categorizer import get_categorizer
 from app.utils import generate_uuid, get_current_user
@@ -33,7 +33,7 @@ router = APIRouter()
 )
 async def categorize_suggest(
     data: CategorizeSuggestRequest,
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     """Suggest a category using ML model with rule-based fallback."""
     cat = get_categorizer()
@@ -63,12 +63,12 @@ async def categorize_suggest(
 async def log_correction(
     data: CategorizeCorrectionRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     """Log when a user overrides a suggested category. Used for future ML training."""
     log = CorrectionLog(
         id=generate_uuid(),
-        user_id=current_user.id,
+        auth_user_id=current_user.id,
         description=data.description,
         merchant=data.merchant,
         suggested_category=data.suggested_category,
@@ -94,7 +94,7 @@ async def log_correction(
 async def train_model(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     """Train the ML categorization model on all logged corrections.
 
@@ -139,7 +139,7 @@ async def train_model(
     },
 )
 async def model_info(
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     """Get info about the current ML model."""
     cat = get_categorizer()

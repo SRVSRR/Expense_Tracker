@@ -27,7 +27,7 @@ async def get_cached_prediction(
     now = datetime.utcnow()
     result = await db.execute(
         select(Prediction).where(
-            Prediction.user_id == user_id,
+            Prediction.auth_user_id == user_id,
             Prediction.type == pred_type,
             Prediction.valid_until > now,
         ).order_by(Prediction.generated_at.desc()).limit(1)
@@ -54,7 +54,7 @@ async def store_prediction(
     # Delete old predictions of this type for this user
     await db.execute(
         delete(Prediction).where(
-            Prediction.user_id == user_id,
+            Prediction.auth_user_id == user_id,
             Prediction.type == pred_type,
         )
     )
@@ -62,7 +62,7 @@ async def store_prediction(
     # Insert new one
     prediction = Prediction(
         id=str(uuid.uuid4()),
-        user_id=user_id,
+        auth_user_id=user_id,
         type=pred_type,
         data=json.dumps(data),
         generated_at=now,
@@ -78,7 +78,7 @@ async def invalidate_predictions(
     pred_type: Optional[str] = None,
 ) -> None:
     """Invalidate cached predictions. If pred_type is given, only invalidate that type."""
-    stmt = delete(Prediction).where(Prediction.user_id == user_id)
+    stmt = delete(Prediction).where(Prediction.auth_user_id == user_id)
     if pred_type:
         stmt = stmt.where(Prediction.type == pred_type)
     await db.execute(stmt)

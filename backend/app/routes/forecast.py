@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from datetime import datetime, timedelta
 
 from app.db.database import get_db
-from app.models import Transaction, Account, User
+from app.models import Transaction, Account
 from app.utils import get_current_user
 from app.services.prediction_cache import get_cached_prediction, store_prediction
 from app.schemas import (
@@ -23,7 +23,7 @@ async def _compute_cashflow(db: AsyncSession, user_id: str, days: int) -> dict:
 
     result = await db.execute(
         select(Transaction).where(
-            Transaction.user_id == user_id,
+            Transaction.auth_user_id == user_id,
             Transaction.date >= three_months_ago,
         )
     )
@@ -44,7 +44,7 @@ async def _compute_cashflow(db: AsyncSession, user_id: str, days: int) -> dict:
 
     today = datetime.utcnow().date()
     account_result = await db.execute(
-        select(func.sum(Account.current_balance)).where(Account.user_id == user_id)
+        select(func.sum(Account.current_balance)).where(Account.auth_user_id == user_id)
     )
     running_balance = account_result.scalar() or 0.0
 
@@ -73,7 +73,7 @@ async def _compute_runway(db: AsyncSession, user_id: str, threshold: float) -> d
 
     result = await db.execute(
         select(Transaction).where(
-            Transaction.user_id == user_id,
+            Transaction.auth_user_id == user_id,
             Transaction.date >= three_months_ago,
         )
     )
@@ -94,7 +94,7 @@ async def _compute_runway(db: AsyncSession, user_id: str, threshold: float) -> d
     net_daily_burn = avg_daily_expense - avg_daily_income
 
     account_result = await db.execute(
-        select(func.sum(Account.current_balance)).where(Account.user_id == user_id)
+        select(func.sum(Account.current_balance)).where(Account.auth_user_id == user_id)
     )
     current_balance = account_result.scalar() or 0.0
 
@@ -116,7 +116,7 @@ async def _compute_runway(db: AsyncSession, user_id: str, threshold: float) -> d
 async def _compute_anomalies(db: AsyncSession, user_id: str) -> dict:
     """Compute naive anomaly detection (2x category average)."""
     result = await db.execute(
-        select(Transaction).where(Transaction.user_id == user_id)
+        select(Transaction).where(Transaction.auth_user_id == user_id)
     )
     transactions = result.scalars().all()
 
@@ -167,7 +167,7 @@ async def _compute_anomalies(db: AsyncSession, user_id: str) -> dict:
 async def get_cashflow_forecast(
     days: int = Query(default=30, ge=7, le=365, description="Number of days to forecast"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     """Cash flow forecast — cached in predictions table (24h TTL)."""
     cached = await get_cached_prediction(db, current_user.id, "cashflow")
@@ -192,7 +192,7 @@ async def get_cashflow_forecast(
 async def get_runway_forecast(
     threshold: float = Query(default=0.0, description="Balance threshold (default 0)"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     """Runway prediction — cached in predictions table (12h TTL)."""
     cached = await get_cached_prediction(db, current_user.id, "runway")
@@ -216,7 +216,7 @@ async def get_runway_forecast(
 )
 async def detect_anomalies(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     """Anomaly detection — cached in predictions table (24h TTL)."""
     cached = await get_cached_prediction(db, current_user.id, "anomaly")

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.db.database import get_db
-from app.models import Category, User
+from app.models import Category
 from app.schemas import CategoryCreate, Category as CategorySchema
 from app.utils import generate_uuid, get_current_user
 
@@ -15,12 +15,12 @@ router = APIRouter()
 async def create_category(
     cat_data: CategoryCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     if cat_data.parent_id:
         result = await db.execute(
             select(Category).where(
-                Category.id == cat_data.parent_id, Category.user_id == current_user.id
+                Category.id == cat_data.parent_id, Category.auth_user_id == current_user.id
             )
         )
         if not result.scalar_one_or_none():
@@ -28,7 +28,7 @@ async def create_category(
 
     category = Category(
         id=generate_uuid(),
-        user_id=current_user.id,
+        auth_user_id=current_user.id,
         name=cat_data.name,
         type=cat_data.type,
         parent_id=cat_data.parent_id,
@@ -44,10 +44,10 @@ async def create_category(
 @router.get("/", response_model=list[CategorySchema])
 async def list_categories(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(Category).where(Category.user_id == current_user.id)
+        select(Category).where(Category.auth_user_id == current_user.id)
     )
     return result.scalars().all()
 
@@ -56,11 +56,11 @@ async def list_categories(
 async def get_category(
     category_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     result = await db.execute(
         select(Category).where(
-            Category.id == category_id, Category.user_id == current_user.id
+            Category.id == category_id, Category.auth_user_id == current_user.id
         )
     )
     category = result.scalar_one_or_none()
@@ -74,11 +74,11 @@ async def update_category(
     category_id: str,
     cat_data: CategoryCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     result = await db.execute(
         select(Category).where(
-            Category.id == category_id, Category.user_id == current_user.id
+            Category.id == category_id, Category.auth_user_id == current_user.id
         )
     )
     category = result.scalar_one_or_none()
@@ -89,7 +89,7 @@ async def update_category(
     if "parent_id" in update_data and update_data["parent_id"]:
         result = await db.execute(
             select(Category).where(
-                Category.id == update_data["parent_id"], Category.user_id == current_user.id
+                Category.id == update_data["parent_id"], Category.auth_user_id == current_user.id
             )
         )
         if not result.scalar_one_or_none():
@@ -107,11 +107,11 @@ async def update_category(
 async def delete_category(
     category_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user = Depends(get_current_user),
 ):
     result = await db.execute(
         select(Category).where(
-            Category.id == category_id, Category.user_id == current_user.id
+            Category.id == category_id, Category.auth_user_id == current_user.id
         )
     )
     category = result.scalar_one_or_none()
