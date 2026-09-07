@@ -248,11 +248,11 @@ future phases.
 | 2026-09-07 | Auth Migration Phase 2 | Alembic migration `59062dbe3d50` adds `auth_user_id` (UUID) columns with FK to `auth.users.id` on 6 tables (`accounts`, `transactions`, `categories`, `recurring_rules`, `predictions`, `correction_logs`). Cross-schema FK validated against Supabase `auth` schema. Migration is reversible. Models updated with conditional `auth_user_id_column()` helper for test compatibility (SQLite). All 82 tests pass. |
 | 2026-09-07 | Auth Migration Phase 3 | Feature flag `AUTH_MODE` added to toggle between local JWT and Supabase Auth. `get_current_user` now supports both Supabase JWT (RS256 via JWKS) and local JWT (HS256). Local `/register` and `/login` endpoints disabled when `AUTH_MODE=supabase`. Test fixtures updated to create users directly with local JWT tokens (simulating Supabase user IDs). All 82 tests pass with `AUTH_MODE=local`. |
 | 2026-09-07 | Auth Migration Phase 4 (CLEANUP) | Local `/register` and `/login` endpoints removed. Local `users` table dropped via Alembic migration `b3028a70b346` (reversible, drops `user_id` columns and FKs to `public.users`). Local JWT creation (`create_access_token`), bcrypt password hashing, and `SECRET_KEY` retained for test fixtures only. `get_current_user` now exclusively uses Supabase JWT (RS256 via JWKS). All 82 tests pass. |
+| 2026-09-07 | OpenAPI/schema docs | Comprehensive OpenAPI schema with metadata, tags, servers, security schemes, and detailed descriptions. Swagger UI at `/docs`, ReDoc at `/redoc`. |
 
 ## What to do next (priority order)
 
-1. **Add OpenAPI/schema docs** — generate `/docs` and `/redoc` for API consumers
-2. **ML upgrade** — Add LightGBM regressors for forecasting (P2)
+1. **ML upgrade** — Add LightGBM regressors for forecasting (P2)
 
 ## Conventions the agent must follow throughout
 

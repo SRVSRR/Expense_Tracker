@@ -86,9 +86,35 @@ Phased migration documented in [MIGRATION.md](MIGRATION.md). Scope: backend only
 
 - [x] **Phase 1**: Backend token verification (Supabase JWT validator in `app/utils/supabase_auth.py`, 10 unit tests, 72 tests still pass)
 - [x] **Phase 2**: Schema change for `auth.users` FK (Alembic migration `59062dbe3d50`, cross-schema FK to `auth.users.id` on 6 tables, UUID type, reversible)
-- [x] **Phase 3**: Switch live auth dependency (feature flag `AUTH_MODE`, Supabase JWT verification in `get_current_user`, local register/login disabled via flag, test fixtures updated, all 82 tests pass)
-- [ ] **Phase 4**: Cleanup (dead code removal, security docs update, dependency trim)
+- [x] **Phase 3**: Switch live auth dependency (feature flag `AUTH_MODE`, Supabase JWT verification in `get_current_user`, local register/login disabled via flag, test fixtures updated, full 82-test pass)
+- [x] **Phase 4**: Cleanup (dead code removal, security docs update, dependency trim)
 - [ ] **Phase 5**: Mobile integration guidance (when mobile repo Phase 1 starts)
+
+## P1 - Finish documented functionality
+
+- [ ] Define the recurring transaction request contract and automatically create a recurring rule when a transaction is marked recurring.
+- [ ] Validate recurring patterns and positive frequencies with Pydantic constraints.
+- [ ] Add explicit error handling and rollback behavior around migration and database failures.
+- [ ] Reconcile the cache documentation with the implemented `budget_analysis` cache type.
+- [ ] Make the app factory and `main.py` use the same router and lifespan configuration.
+- [ ] Add OpenAPI examples and response schemas for forecast, budget, recurring, and categorization endpoints.
+
+## P2 - ML upgrade
+
+- [ ] Add separate LightGBM income and expense regressors.
+- [ ] Add seasonality, spend velocity, and other documented features.
+- [ ] Add scheduled prediction generation and cache writes.
+- [ ] Add confidence ranges to forecast responses.
+- [ ] Add model versioning and reproducible training metadata.
+
+## P3 - Production hardening
+
+- [x] Move authentication to Supabase Auth (completed)
+- [ ] Use a strong production `SECRET_KEY` and environment-specific CORS origins.
+- [ ] Add rate limiting, structured logs, backups, and error monitoring.
+- [ ] Run migrations as a release step and add a health check that verifies database connectivity.
+- [ ] Deploy the API and configure a stable HTTPS URL for mobile and desktop clients.
+- [ ] Add CI for tests, syntax checks, and dependency/security scanning.
 
 ## P1 - Finish documented functionality
 
