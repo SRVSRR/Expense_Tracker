@@ -10,6 +10,15 @@ class TransactionType(str, Enum):
     EXPENSE = "expense"
 
 
+class RecurringPattern(str, Enum):
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    BIWEEKLY = "biweekly"
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    YEARLY = "yearly"
+
+
 class CategoryBase(BaseModel):
     name: str
     type: TransactionType
@@ -70,6 +79,9 @@ class TransactionBase(BaseModel):
 
 class TransactionCreate(TransactionBase):
     account_id: str
+    recurring_pattern: Optional[RecurringPattern] = None
+    recurring_frequency: Optional[int] = Field(default=None, ge=1)
+    recurring_expected_date: Optional[datetime] = None
 
 
 class TransactionUpdate(BaseModel):
@@ -115,9 +127,9 @@ class User(UserBase):
 
 
 class RecurringRuleBase(BaseModel):
-    pattern: str
-    frequency: int = 1
-    expected_amount: float
+    pattern: RecurringPattern
+    frequency: int = Field(default=1, ge=1)
+    expected_amount: float = Field(gt=0)
     expected_date: datetime
 
 
