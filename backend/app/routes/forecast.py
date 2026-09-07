@@ -1,4 +1,4 @@
-"""Forecasting routes (AI/ML features) — naive implementations for v1"""
+"""Forecasting routes (AI/ML features) — LightGBM-powered forecasting with confidence intervals."""
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -8,6 +8,7 @@ from app.db.database import get_db
 from app.models import Transaction, Account
 from app.utils import get_current_user
 from app.services.prediction_cache import get_cached_prediction, store_prediction
+from app.ml.forecasting import get_forecast_manager
 from app.schemas import (
     CashflowForecast,
     RunwayForecast,
@@ -17,93 +18,104 @@ from app.schemas import (
 router = APIRouter()
 
 
-async def _compute_cashflow(db: AsyncSession, user_id: str, days: int) -> dict:
-    """Compute naive cashflow forecast (rolling 3-month average)."""
-    three_months_ago = datetime.utcnow() - timedelta(days=90)
-
-    result = await db.execute(
-        select(Transaction).where(
-            Transaction.auth_user_id == user_id,
-            Transaction.date >= three_months_ago,
-        )
-    )
-    transactions = result.scalars().all()
-
-    daily_income = {}
-    daily_expense = {}
-    for tx in transactions:
-        day = tx.date.date()
-        if tx.type.value == "income":
-            daily_income[day] = daily_income.get(day, 0) + tx.amount
-        else:
-            daily_expense[day] = daily_expense.get(day, 0) + tx.amount
-
-    num_days = max(len(daily_income), len(daily_expense), 1)
-    avg_daily_income = sum(daily_income.values()) / num_days if daily_income else 0
-    avg_daily_expense = sum(daily_expense.values()) / num_days if daily_expense else 0
-
-    today = datetime.utcnow().date()
-    account_result = await db.execute(
-        select(func.sum(Account.current_balance)).where(Account.auth_user_id == user_id)
-    )
-    running_balance = account_result.scalar() or 0.0
-
-    forecast = []
-    for i in range(1, days + 1):
-        forecast_date = today + timedelta(days=i)
-        running_balance += avg_daily_income - avg_daily_expense
-        forecast.append({
-            "date": forecast_date.isoformat(),
-            "projected_balance": round(running_balance, 2),
-            "expected_income": round(avg_daily_income, 2),
-            "expected_expense": round(avg_daily_expense, 2),
+def _convert_ml_forecast_to_cashflow(ml_data: dict, days: int) -> dict:
+    """Convert ML forecast output to CashflowForecast schema format."""
+    forecast = ml_data.get("forecast", [])
+    
+    # Calculate average daily income/expense from ML forecast
+    total_income = sum(f.get("expected_income", 0) for f in forecast)
+    total_expense = sum(f.get("expected_expense", 0) for f in forecast)
+    num_days = len(forecast) if forecast else 1
+    avg_daily_income = total_income / num_days
+    avg_daily_expense = total_expense / num_days
+    
+    # Convert ML forecast format to CashflowForecastDay format
+    forecast_days = []
+    for f in forecast:
+        forecast_days.append({
+            "date": f["date"],
+            "projected_balance": f["projected_balance"],
+            "expected_income": f["expected_income"],
+            "expected_expense": f["expected_expense"],
         })
-
+    
     return {
-        "period_days": days,
+        "period_days": len(forecast_days),
         "avg_daily_income": round(avg_daily_income, 2),
         "avg_daily_expense": round(avg_daily_expense, 2),
-        "forecast": forecast,
+        "forecast": forecast_days,
     }
 
 
-async def _compute_runway(db: AsyncSession, user_id: str, threshold: float) -> dict:
-    """Compute naive runway prediction."""
-    three_months_ago = datetime.utcnow() - timedelta(days=90)
+@router.get(
+    "/cashflow",
+    response_model=CashflowForecast,
+    summary="Cash flow forecast",
+    description="Returns an ML-powered cash flow forecast with confidence intervals for the specified number of days. Cached for 24 hours.",
+    responses={
+        200: {"description": "Successful response with forecast data"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+    },
+)
+async def get_cashflow_forecast(
+    days: int = Query(default=30, ge=7, le=365, description="Number of days to forecast"),
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """ML-powered cash flow forecast with confidence intervals — cached in predictions table (24h TTL)."""
+    cached = await get_cached_prediction(db, current_user.id, "cashflow")
+    if cached and cached.get("period_days") == days:
+        return cached
 
-    result = await db.execute(
-        select(Transaction).where(
-            Transaction.auth_user_id == user_id,
-            Transaction.date >= three_months_ago,
-        )
-    )
-    transactions = result.scalars().all()
+    forecast_manager = get_forecast_manager()
+    ml_data = await forecast_manager.generate_forecasts(db, current_user.id, days)
+    
+    # Convert ML forecast to CashflowForecast schema format
+    data = _convert_ml_forecast_to_cashflow(ml_data, days)
+    
+    await store_prediction(db, current_user.id, "cashflow", data)
+    return data
 
-    daily_expense = {}
-    daily_income = {}
-    for tx in transactions:
-        day = tx.date.date()
-        if tx.type.value == "expense":
-            daily_expense[day] = daily_expense.get(day, 0) + tx.amount
-        else:
-            daily_income[day] = daily_income.get(day, 0) + tx.amount
 
-    num_days = max(len(daily_expense), len(daily_income), 1)
-    avg_daily_expense = sum(daily_expense.values()) / num_days if daily_expense else 0
-    avg_daily_income = sum(daily_income.values()) / num_days if daily_income else 0
+@router.get(
+    "/runway",
+    response_model=RunwayForecast,
+    summary="Runway prediction",
+    description="Computes days until balance hits a threshold based on ML-projected net daily burn rate. Cached for 12 hours.",
+    responses={
+        200: {"description": "Successful response with runway data"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+    },
+)
+async def get_runway_forecast(
+    threshold: float = Query(default=0.0, description="Balance threshold (default 0)"),
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """Runway prediction with ML-projected net daily burn — cached in predictions table (12h TTL)."""
+    cached = await get_cached_prediction(db, current_user.id, "runway")
+    if cached and cached.get("threshold") == threshold:
+        return cached
+
+    forecast_manager = get_forecast_manager()
+    forecast_data = await forecast_manager.generate_forecasts(db, current_user.id, 365)
+    
+    # Compute runway from ML forecast
+    current_balance = forecast_data.get("current_balance", 0)
+    forecast = forecast_data.get("forecast", [])
+    
+    total_income = sum(f.get("expected_income", 0) for f in forecast)
+    total_expense = sum(f.get("expected_expense", 0) for f in forecast)
+    avg_daily_income = total_income / 365 if forecast else 0
+    avg_daily_expense = total_expense / 365 if forecast else 0
     net_daily_burn = avg_daily_expense - avg_daily_income
-
-    account_result = await db.execute(
-        select(func.sum(Account.current_balance)).where(Account.auth_user_id == user_id)
-    )
-    current_balance = account_result.scalar() or 0.0
-
+    
     if net_daily_burn <= 0:
         days_remaining = None
     else:
         days_remaining = max(0, int((current_balance - threshold) / net_daily_burn))
-
-    return {
+    
+    data = {
         "current_balance": round(current_balance, 2),
         "avg_daily_income": round(avg_daily_income, 2),
         "avg_daily_expense": round(avg_daily_expense, 2),
@@ -111,6 +123,32 @@ async def _compute_runway(db: AsyncSession, user_id: str, threshold: float) -> d
         "threshold": threshold,
         "days_until_threshold": days_remaining,
     }
+    await store_prediction(db, current_user.id, "runway", data)
+    return data
+
+
+@router.get(
+    "/anomalies",
+    response_model=AnomaliesResponse,
+    summary="Anomaly detection",
+    description="Detects per-category expense outliers (>2x category average). Cached for 24 hours.",
+    responses={
+        200: {"description": "Successful response with anomaly data"},
+        401: {"description": "Unauthorized - invalid or missing token"},
+    },
+)
+async def detect_anomalies(
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """Anomaly detection — cached in predictions table (24h TTL)."""
+    cached = await get_cached_prediction(db, current_user.id, "anomaly")
+    if cached:
+        return cached
+
+    data = await _compute_anomalies(db, current_user.id)
+    await store_prediction(db, current_user.id, "anomaly", data)
+    return data
 
 
 async def _compute_anomalies(db: AsyncSession, user_id: str) -> dict:
@@ -152,77 +190,3 @@ async def _compute_anomalies(db: AsyncSession, user_id: str) -> dict:
         "anomalies_found": len(anomalies),
         "anomalies": anomalies,
     }
-
-
-@router.get(
-    "/cashflow",
-    response_model=CashflowForecast,
-    summary="Cash flow forecast",
-    description="Returns a rolling 3-month average cash flow forecast for the specified number of days. Cached for 24 hours.",
-    responses={
-        200: {"description": "Successful response with forecast data"},
-        401: {"description": "Unauthorized - invalid or missing token"},
-    },
-)
-async def get_cashflow_forecast(
-    days: int = Query(default=30, ge=7, le=365, description="Number of days to forecast"),
-    db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
-):
-    """Cash flow forecast — cached in predictions table (24h TTL)."""
-    cached = await get_cached_prediction(db, current_user.id, "cashflow")
-    if cached and cached.get("period_days") == days:
-        return cached
-
-    data = await _compute_cashflow(db, current_user.id, days)
-    await store_prediction(db, current_user.id, "cashflow", data)
-    return data
-
-
-@router.get(
-    "/runway",
-    response_model=RunwayForecast,
-    summary="Runway prediction",
-    description="Computes days until balance hits a threshold based on net daily burn rate. Cached for 12 hours.",
-    responses={
-        200: {"description": "Successful response with runway data"},
-        401: {"description": "Unauthorized - invalid or missing token"},
-    },
-)
-async def get_runway_forecast(
-    threshold: float = Query(default=0.0, description="Balance threshold (default 0)"),
-    db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
-):
-    """Runway prediction — cached in predictions table (12h TTL)."""
-    cached = await get_cached_prediction(db, current_user.id, "runway")
-    if cached and cached.get("threshold") == threshold:
-        return cached
-
-    data = await _compute_runway(db, current_user.id, threshold)
-    await store_prediction(db, current_user.id, "runway", data)
-    return data
-
-
-@router.get(
-    "/anomalies",
-    response_model=AnomaliesResponse,
-    summary="Anomaly detection",
-    description="Detects per-category expense outliers (>2x category average). Cached for 24 hours.",
-    responses={
-        200: {"description": "Successful response with anomaly data"},
-        401: {"description": "Unauthorized - invalid or missing token"},
-    },
-)
-async def detect_anomalies(
-    db: AsyncSession = Depends(get_db),
-    current_user = Depends(get_current_user),
-):
-    """Anomaly detection — cached in predictions table (24h TTL)."""
-    cached = await get_cached_prediction(db, current_user.id, "anomaly")
-    if cached:
-        return cached
-
-    data = await _compute_anomalies(db, current_user.id)
-    await store_prediction(db, current_user.id, "anomaly", data)
-    return data

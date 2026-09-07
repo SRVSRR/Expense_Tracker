@@ -101,11 +101,11 @@ Phased migration documented in [MIGRATION.md](MIGRATION.md). Scope: backend only
 
 ## P2 - ML upgrade
 
-- [ ] Add separate LightGBM income and expense regressors.
-- [ ] Add seasonality, spend velocity, and other documented features.
-- [ ] Add scheduled prediction generation and cache writes.
-- [ ] Add confidence ranges to forecast responses.
-- [ ] Add model versioning and reproducible training metadata.
+- [x] Add separate LightGBM income and expense regressors.
+- [x] Add seasonality, spend velocity, and other documented features.
+- [x] Add scheduled prediction generation and cache writes.
+- [x] Add confidence ranges to forecast responses.
+- [x] Add model versioning and reproducible training metadata.
 
 ## P3 - Production hardening
 

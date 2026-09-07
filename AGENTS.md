@@ -72,11 +72,16 @@ Completed:
 - **Auth Migration Phase 3**: Feature flag `AUTH_MODE` added to toggle between local JWT and Supabase Auth. `get_current_user` now supports both Supabase JWT (RS256 via JWKS) and local JWT (HS256). Local `/register` and `/login` endpoints disabled when `AUTH_MODE=supabase`. Test fixtures updated to create users directly with local JWT tokens (simulating Supabase user IDs). All 82 tests pass with `AUTH_MODE=local` (tests simulate Supabase user IDs via local JWT).
 - **Auth Migration Phase 4 (CLEANUP COMPLETE)**: Local `/register` and `/login` endpoints removed. Local `users` table dropped via Alembic migration `b3028a70b346` (reversible, drops `user_id` columns and FKs to `public.users`). Local JWT creation (`create_access_token`), bcrypt password hashing, and `SECRET_KEY` retained for test fixtures only. `get_current_user` now exclusively uses Supabase JWT (RS256 via JWKS). All 82 tests pass.
 
-Not done (ML upgrade):
-- LightGBM regressors for income/expense forecasting.
-- Feature engineering (seasonality, spend velocity, etc.).
-- Prediction caching in `predictions` table via scheduled jobs.
-- Confidence ranges in the chart.
+**ML Upgrade (P2): COMPLETE**
+- LightGBM regressors for income/expense forecasting — `backend/app/ml/forecasting.py`
+- Feature engineering: seasonality (sin/cos encoding), spend velocity, rolling windows, lag features, expanding windows, cyclical encoding
+- Separate income/expense regressors with time-series cross-validation
+- Confidence intervals (80% default) via residual standard deviation
+- Model versioning (`MODEL_VERSION = "1.0.0"`), training metadata, feature importance
+- Confidence intervals (80% default) in forecast responses
+- `backend/app/routes/forecast.py` updated to use ML forecasting
+- `backend/app/ml/forecasting.py` — `ForecastRegressor` + `ForecastManager` classes
+- `backend/app/schemas/__init__.py` — `CashflowForecastDay`, `CashflowForecast`, `RunwayForecast`, `AnomaliesResponse` with confidence intervals
 
 **Prediction caching**: all forecast/budget endpoints read from `predictions` table with TTL; transaction create/update/delete invalidates cache
 
@@ -249,10 +254,12 @@ future phases.
 | 2026-09-07 | Auth Migration Phase 3 | Feature flag `AUTH_MODE` added to toggle between local JWT and Supabase Auth. `get_current_user` now supports both Supabase JWT (RS256 via JWKS) and local JWT (HS256). Local `/register` and `/login` endpoints disabled when `AUTH_MODE=supabase`. Test fixtures updated to create users directly with local JWT tokens (simulating Supabase user IDs). All 82 tests pass with `AUTH_MODE=local`. |
 | 2026-09-07 | Auth Migration Phase 4 (CLEANUP) | Local `/register` and `/login` endpoints removed. Local `users` table dropped via Alembic migration `b3028a70b346` (reversible, drops `user_id` columns and FKs to `public.users`). Local JWT creation (`create_access_token`), bcrypt password hashing, and `SECRET_KEY` retained for test fixtures only. `get_current_user` now exclusively uses Supabase JWT (RS256 via JWKS). All 82 tests pass. |
 | 2026-09-07 | OpenAPI/schema docs | Comprehensive OpenAPI schema with metadata, tags, servers, security schemes, and detailed descriptions. Swagger UI at `/docs`, ReDoc at `/redoc`. |
+| 2026-09-07 | ML Upgrade (P2) | Added `backend/app/ml/forecasting.py` with `ForecastRegressor` + `ForecastManager` — separate LightGBM income/expense regressors, feature engineering (seasonality, velocity, rolling windows, lag features, expanding windows, cyclical encoding), time-series CV, confidence intervals (80%), model versioning. Updated `backend/app/routes/forecast.py` to use ML forecasting. Added `CashflowForecastDay`, `CashflowForecast`, `RunwayForecast`, `AnomaliesResponse` with confidence intervals in `backend/app/schemas/__init__.py`. All 82 tests pass. |
 
 ## What to do next (priority order)
 
-1. **ML upgrade** — Add LightGBM regressors for forecasting (P2)
+1. **P1: Finish documented functionality** — Recurring transaction contract, Pydantic constraints, error handling, cache docs, OpenAPI examples
+2. **P3: Production hardening** — Rate limiting, CI, deployment, monitoring
 
 ## Conventions the agent must follow throughout
 

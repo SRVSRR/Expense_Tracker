@@ -1,6 +1,6 @@
 """Pydantic request/response schemas"""
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 from pydantic import BaseModel, Field
 from enum import Enum
 
@@ -156,6 +156,8 @@ class CashflowForecastDay(BaseModel):
     projected_balance: float
     expected_income: float
     expected_expense: float
+    income_confidence_interval: Optional[Dict[str, float]] = None
+    expense_confidence_interval: Optional[Dict[str, float]] = None
 
 
 class CashflowForecast(BaseModel):
