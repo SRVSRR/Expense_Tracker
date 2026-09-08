@@ -1,4 +1,16 @@
-"""Prediction caching service — reads/writes the predictions table."""
+"""Prediction caching service — reads/writes the predictions table.
+
+Cache Types & TTLs:
+| Type              | TTL   | Invalidation Triggers                                          |
+|-------------------|-------|---------------------------------------------------------------|
+| cashflow          | 24h   | Transaction create/update/delete, Account create/update/delete, Recurring create/delete |
+| runway            | 12h   | Transaction create/update/delete, Account create/update/delete, Recurring create/delete |
+| anomaly           | 24h   | Transaction create/update/delete                              |
+| budget            | 7d    | Transaction create/update/delete, Account create/update/delete, Recurring create/delete |
+| budget_analysis   | 7d    | Transaction create/update/delete, Account create/update/delete, Recurring create/delete |
+
+All cache entries are scoped to the authenticated user via `auth_user_id`.
+"""
 import json
 import uuid
 from datetime import datetime, timedelta
@@ -14,7 +26,8 @@ TTL_HOURS = {
     "cashflow": 24,
     "runway": 12,
     "anomaly": 24,
-    "budget": 168,  # 7 days
+    "budget": 168,       # 7 days
+    "budget_analysis": 168,  # 7 days
 }
 
 
