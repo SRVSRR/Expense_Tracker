@@ -54,7 +54,7 @@ correctness over frontend UI concerns.
 - Registration was verified on 2026-09-06 with a live `201 Created` response;
   user responses must continue to exclude password fields and password hashes.
 
-## Current status (as of 2026-09-07)
+## Current status (as of 2026-09-10)
 
 **Phases 1–6: COMPLETE (with API + caching + P0 test coverage)**
 
@@ -69,7 +69,7 @@ Completed:
 - **P0 Test Infrastructure**: Isolated async integration-test fixtures with in-memory SQLite, auth helpers, 72 automated integration tests passing
 - **Auth Migration Phase 1**: Supabase JWT verification implemented in `app/utils/supabase_auth.py` (JWKS fetching/caching, RS256 verification, audience/issuer/expiry validation); 10 unit tests pass; all 72 existing integration tests still pass (82 total); local JWT auth remains live path — Supabase verifier is additive and isolated for Phase 2+ integration
 - **Auth Migration Phase 2**: Schema change for `auth.users` FK — Alembic migration `59062dbe3d50` adds `auth_user_id` (UUID) columns with FK to `auth.users.id` on 6 tables (`accounts`, `transactions`, `categories`, `recurring_rules`, `predictions`, `correction_logs`). Cross-schema FK validated against Supabase `auth` schema. Migration is reversible. Models updated with conditional `auth_user_id_column()` helper for test compatibility (SQLite). All 82 tests pass.
-- **Auth Migration Phase 3**: Feature flag `AUTH_MODE` added to toggle between local JWT and Supabase Auth. `get_current_user` now supports both Supabase JWT (RS256 via JWKS) and local JWT (HS256). Local `/register` and `/login` endpoints disabled when `AUTH_MODE=supabase`. Test fixtures updated to create users directly with local JWT tokens (simulating Supabase user IDs). All 82 tests pass with `AUTH_MODE=local` (tests simulate Supabase user IDs via local JWT).
+- **Auth Migration Phase 3**: `get_current_user` uses Supabase JWT verification in production and local HS256 JWTs only when `TESTING=1`. `AUTH_MODE` is not read by the application. Test fixtures create users directly with local JWT tokens (simulating Supabase user IDs). All 82 tests pass.
 - **Auth Migration Phase 4 (CLEANUP COMPLETE)**: Local `/register` and `/login` endpoints removed. Local `users` table dropped via Alembic migration `b3028a70b346` (reversible, drops `user_id` columns and FKs to `public.users`). Local JWT creation (`create_access_token`), bcrypt password hashing, and `SECRET_KEY` retained for test fixtures only. `get_current_user` now exclusively uses Supabase JWT (RS256 via JWKS). All 82 tests pass.
 
 **ML Upgrade (P2): COMPLETE**
@@ -87,7 +87,14 @@ Completed:
 
 **P0 Complete**: All integration tests for auth/user isolation, CRUD + balance effects, forecast/budget/cache invalidation, category parent ownership validation, and transaction edit policy (`type`/`account_id` immutable) are passing.
 
-**Auth Migration**: Phase 1 complete (Supabase JWT validator ready). Phase 2 complete (FK schema). Phase 3 complete (feature flag `AUTH_MODE`, `get_current_user` supports both Supabase RS256 and local HS256, local register/login disabled via flag, test fixtures updated). Phase 4 complete (local auth code removed, local `users` table dropped, Supabase Auth is now sole provider). All 82 tests pass.
+**Auth Migration**: Phases 1-4 complete. `get_current_user` uses Supabase RS256/JWKS verification in production and local HS256 only for tests; local auth routes and the local `users` table are removed. All 82 tests pass.
+
+**Deployment and mobile handoff**: The FastAPI backend is deployed on Render with
+Supabase Auth as the production provider. Render uses `/health` as the health-check
+path; the endpoint verifies database connectivity with `SELECT 1`. The mobile
+client must use `@supabase/supabase-js`, send Supabase access tokens as Bearer
+ tokens, and target `https://expense-tracker-uwrp.onrender.com` rather than
+ localhost. Render health checks use `/health`.
 
 ## Tech stack (API-only)
 
@@ -251,8 +258,9 @@ future phases.
 | 2026-09-06 | Documentation | Updated `TODO.md` (all P0 items ✅, verification log) and `AGENTS.md` (current status, what's next) |
 | 2026-09-07 | Auth Migration Phase 1 | Added `app/utils/supabase_auth.py` with JWKS fetching/caching, RS256 signature verification, audience/issuer/expiry validation; 10 unit tests in `tests/test_supabase_auth.py` (mocked JWKS + real RSA key validation); all 72 existing integration tests still pass (82 total); local JWT auth remains live path — Supabase verifier is additive and isolated for Phase 2+ integration |
 | 2026-09-07 | Auth Migration Phase 2 | Alembic migration `59062dbe3d50` adds `auth_user_id` (UUID) columns with FK to `auth.users.id` on 6 tables (`accounts`, `transactions`, `categories`, `recurring_rules`, `predictions`, `correction_logs`). Cross-schema FK validated against Supabase `auth` schema. Migration is reversible. Models updated with conditional `auth_user_id_column()` helper for test compatibility (SQLite). All 82 tests pass. |
-| 2026-09-07 | Auth Migration Phase 3 | Feature flag `AUTH_MODE` added to toggle between local JWT and Supabase Auth. `get_current_user` now supports both Supabase JWT (RS256 via JWKS) and local JWT (HS256). Local `/register` and `/login` endpoints disabled when `AUTH_MODE=supabase`. Test fixtures updated to create users directly with local JWT tokens (simulating Supabase user IDs). All 82 tests pass with `AUTH_MODE=local`. |
+| 2026-09-07 | Auth Migration Phase 3 | `get_current_user` uses Supabase JWT verification in production and local HS256 JWTs only when `TESTING=1`; `AUTH_MODE` is not read by the application. Test fixtures use local JWTs to simulate Supabase user IDs. All 82 tests pass. |
 | 2026-09-07 | Auth Migration Phase 4 (CLEANUP) | Local `/register` and `/login` endpoints removed. Local `users` table dropped via Alembic migration `b3028a70b346` (reversible, drops `user_id` columns and FKs to `public.users`). Local JWT creation (`create_access_token`), bcrypt password hashing, and `SECRET_KEY` retained for test fixtures only. `get_current_user` now exclusively uses Supabase JWT (RS256 via JWKS). All 82 tests pass. |
+| 2026-09-10 | Render deployment and mobile handoff | Deployed the FastAPI backend with Supabase Auth at `https://expense-tracker-uwrp.onrender.com`. Configured `/health` for Render database-connectivity checks. Documented mobile use of `@supabase/supabase-js` and Bearer access tokens. |
 | 2026-09-07 | OpenAPI/schema docs | Comprehensive OpenAPI schema with metadata, tags, servers, security schemes, and detailed descriptions. Swagger UI at `/docs`, ReDoc at `/redoc`. |
 | 2026-09-07 | ML Upgrade (P2) | Added `backend/app/ml/forecasting.py` with `ForecastRegressor` + `ForecastManager` — separate LightGBM income/expense regressors, feature engineering (seasonality, velocity, rolling windows, lag features, expanding windows, cyclical encoding), time-series CV, confidence intervals (80%), model versioning. Updated `backend/app/routes/forecast.py` to use ML forecasting. Added `CashflowForecastDay`, `CashflowForecast`, `RunwayForecast`, `AnomaliesResponse` with confidence intervals in `backend/app/schemas/__init__.py`. All 82 tests pass. |
 | 2026-09-07 | P1 Progress | Added `RecurringPattern` enum (daily/weekly/biweekly/monthly/quarterly/yearly) and Pydantic validation to `TransactionCreate` and `RecurringRuleBase`. Transaction creation auto-creates `RecurringRule` when `is_recurring=1` with required fields. Added `RecurringRule` schema with `auth_user_id`. All 82 tests pass. |
@@ -260,8 +268,9 @@ future phases.
 
 ## What to do next (priority order)
 
-1. **P1: Finish documented functionality** — Recurring transaction contract, Pydantic constraints, error handling, cache docs, OpenAPI examples
-2. **P3: Production hardening** — Rate limiting, CI, deployment, monitoring
+1. **P1: Finish documented functionality** — Cache documentation and OpenAPI examples
+2. **P3: Production hardening** — Rate limiting, CI, monitoring, and production secret/CORS review
+3. **Mobile integration** — Configure the mobile repository with the final Render API URL and Supabase project settings
 
 ## Conventions the agent must follow throughout
 

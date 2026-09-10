@@ -1,6 +1,6 @@
 # Expense Tracker Delivery Checklist
 
-Status: API foundation exists; correctness and operational work is in progress.
+Status: API is deployed with Supabase Auth; mobile integration is the next client-side phase.
 
 Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs/P0_PLAN.md).
 
@@ -47,18 +47,21 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 	`correction_logs`). Cross-schema FK validated against Supabase `auth` schema.
 	Migration is reversible. Models updated with conditional `auth_user_id_column()`
 	helper for test compatibility (SQLite). All 82 tests pass.
-- **2026-09-07**: Auth Migration Phase 3 complete. Feature flag `AUTH_MODE` added
-	to toggle between local JWT and Supabase Auth. `get_current_user` now supports
-	both Supabase JWT (RS256 via JWKS) and local JWT (HS256). Local `/register`
-	and `/login` endpoints disabled when `AUTH_MODE=supabase`. Test fixtures
-	updated to create users directly with local JWT tokens (simulating Supabase
-	user IDs). All 82 tests pass with `AUTH_MODE=local` (tests simulate Supabase
-	user IDs via local JWT).
+- **2026-09-07**: Auth Migration Phase 3 complete. `get_current_user` uses
+	Supabase JWT (RS256 via JWKS) in production and local JWT (HS256) only when
+	`TESTING=1`. Local `/register` and `/login` endpoints are removed. Test
+	fixtures create users directly with local JWT tokens (simulating Supabase
+	user IDs). All 82 tests pass.
 - **2026-09-07**: Phase 3 integration tests updated for Supabase Auth compatibility.
 	All 82 tests pass (72 P0 + 10 Supabase auth). Category seeding fixed for test
 	users. All schemas updated to use `auth_user_id` instead of `user_id`.
-	Local JWT auth remains live path; Supabase verifier is additive and isolated
-	for Phase 4+ integration.
+- **2026-09-10**: Render deployment verified for the FastAPI backend with Supabase
+	Auth as the production authentication provider. Render health-check path is
+	`/health`; it verifies database connectivity with `SELECT 1`. Production
+	configuration uses `SUPABASE_JWKS_URL` and `SUPABASE_ISSUER`; `AUTH_MODE` is
+	not read by the application, and `TESTING=0` (or unset) selects Supabase JWT
+	verification. The deployed API base URL should be recorded here once finalized:
+	`https://expense-tracker-uwrp.onrender.com`.
 
 ## P0 - Make the current API trustworthy
 
@@ -86,9 +89,14 @@ Phased migration documented in [MIGRATION.md](MIGRATION.md). Scope: backend only
 
 - [x] **Phase 1**: Backend token verification (Supabase JWT validator in `app/utils/supabase_auth.py`, 10 unit tests, 72 tests still pass)
 - [x] **Phase 2**: Schema change for `auth.users` FK (Alembic migration `59062dbe3d50`, cross-schema FK to `auth.users.id` on 6 tables, UUID type, reversible)
-- [x] **Phase 3**: Switch live auth dependency (feature flag `AUTH_MODE`, Supabase JWT verification in `get_current_user`, local register/login disabled via flag, test fixtures updated, full 82-test pass)
+- [x] **Phase 3**: Switch live auth dependency (Supabase JWT verification in `get_current_user`, local HS256 verification limited to `TESTING=1`, test fixtures updated, full 82-test pass)
 - [x] **Phase 4**: Cleanup (dead code removal, security docs update, dependency trim)
-- [ ] **Phase 5**: Mobile integration guidance (when mobile repo Phase 1 starts)
+- [x] **Phase 5**: Mobile integration guidance is ready. The mobile client should
+	use `@supabase/supabase-js` for email/password, magic-link, or OAuth sign-in,
+	attach the resulting Supabase access token as a Bearer token, and send API
+	requests to `https://expense-tracker-uwrp.onrender.com` rather than localhost.
+	The backend health check is
+	`https://expense-tracker-uwrp.onrender.com/health`.
 
 ## P1 - Finish documented functionality
 
@@ -112,8 +120,10 @@ Phased migration documented in [MIGRATION.md](MIGRATION.md). Scope: backend only
 - [x] Move authentication to Supabase Auth (completed)
 - [ ] Use a strong production `SECRET_KEY` and environment-specific CORS origins.
 - [ ] Add rate limiting, structured logs, backups, and error monitoring.
-- [ ] Run migrations as a release step and add a health check that verifies database connectivity.
-- [ ] Deploy the API and configure a stable HTTPS URL for mobile and desktop clients.
+	- [ ] Run migrations as a release step and add a health check that verifies database connectivity.
+	- [x] Deploy the API and configure the `/health` endpoint for Render. Record the
+		stable HTTPS URL `https://expense-tracker-uwrp.onrender.com` and the mobile
+		client configuration.
 - [ ] Add CI for tests, syntax checks, and dependency/security scanning.
 
 ## P1 - Finish documented functionality

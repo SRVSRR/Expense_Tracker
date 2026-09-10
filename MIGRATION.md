@@ -65,7 +65,22 @@ Tasks:
 **Definition of done:** no dead auth code remains; `SECURITY.md` and `AGENTS.md` accurately describe the Supabase Auth setup; full test suite still passes; dependency list is trimmed.
 
 ## Phase 5: Mobile-side integration (when mobile repo work begins)
-Not part of this backend migration, but noted here so the connection isn't lost: the mobile repo's Phase 1 (auth screens) should use `@supabase/supabase-js` directly rather than hand-building login/register screens against custom backend endpoints, since those endpoints will no longer exist after Phase 4. Update the mobile repo's auth phase tasks accordingly before mobile development starts.
+The backend is now deployed on Render and accepts Supabase-issued access tokens.
+The mobile repo's Phase 1 auth screens should use `@supabase/supabase-js`
+directly rather than hand-building login/register screens against custom backend
+endpoints, since those endpoints no longer exist after Phase 4.
+
+Mobile integration contract:
+
+1. Configure the Supabase project URL and anon key in the mobile repository.
+2. Use Supabase Auth for email/password, magic-link, or OAuth sign-in.
+3. Send the session access token to the API as `Authorization: Bearer <token>`.
+4. Set the API base URL to `https://expense-tracker-uwrp.onrender.com`, not `localhost`.
+5. Use `https://expense-tracker-uwrp.onrender.com/health` to verify the deployed service is reachable.
+
+The backend verifies tokens using `SUPABASE_JWKS_URL` and `SUPABASE_ISSUER`.
+`AUTH_MODE` is not an application setting; production mode is selected whenever
+`TESTING` is not `1`.
 
 ## Rollback plan (if Phase 3 or 4 surfaces a serious issue)
 
