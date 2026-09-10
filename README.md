@@ -66,13 +66,11 @@ The API uses asynchronous SQLAlchemy sessions and `aiosqlite` locally. PostgreSQ
 
 ### Planned
 
-- Separate LightGBM income and expense regressors
-- Seasonality and spend-velocity features
 - Scheduled prediction generation
 - Confidence ranges for forecast results
 - Automatic recurring-transaction detection
-- Broader integration-test coverage
-- Production authentication decision: retain local JWT or migrate to Supabase Auth
+- Broader integration-test coverage and CI
+- Production CORS hardening and operational monitoring
 
 See [TODO.md](TODO.md) for the prioritized implementation queue and [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for the operational runbook.
 
@@ -118,6 +116,9 @@ Copy [backend/.env.example](backend/.env.example) to `backend/.env`. Do not comm
 ```env
 DATABASE_URL=postgresql+asyncpg://postgres.<project-ref>:<password>@<pooler-host>:6543/postgres
 SECRET_KEY=replace-with-a-long-random-value
+SUPABASE_JWKS_URL=https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json
+SUPABASE_ISSUER=https://<project-ref>.supabase.co/auth/v1
+TESTING=0
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
 
@@ -126,8 +127,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 | Variable | Required | Description |
 |---|---:|---|
 | `DATABASE_URL` | Yes in production | Async SQLAlchemy URL. Use `sqlite+aiosqlite:///./expense_tracker.db` locally or `postgresql+asyncpg://...` for PostgreSQL. |
-| `SECRET_KEY` | Yes in production | Secret used to sign JWTs. Generate a long random value and keep it private. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | JWT lifetime. Defaults to 1440 minutes. |
+| `SECRET_KEY` | Yes in tests | Local HS256 test-token secret; Supabase signs production tokens. |
+| `SUPABASE_JWKS_URL` | Yes in production | Supabase JWKS endpoint used to verify RS256 access tokens. |
+| `SUPABASE_ISSUER` | Yes in production | Supabase JWT issuer, normally `https://<project-ref>.supabase.co/auth/v1`. |
+| `TESTING` | No | Set to `1` only for isolated tests; any other value uses Supabase JWT verification. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | Local test-token lifetime. Defaults to 1440 minutes. |
 
 `DATABASE_URL` is required; the application has no local SQLite fallback. For Supabase Transaction pooler connections, use port `6543` and the `postgresql+asyncpg://` driver form.
 
@@ -135,7 +139,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
 Migration files live in [backend/alembic/versions](backend/alembic/versions). The current schema includes:
 
-- `users`
 - `accounts`
 - `transactions`
 - `categories`
@@ -178,26 +181,14 @@ For a clean remote reset, use a disposable Supabase project or an explicit migra
 
 ## Authentication
 
-Register a user:
+Production authentication is handled by Supabase Auth. Create a session in the
+client with `@supabase/supabase-js` using email/password, magic link, or OAuth,
+then send the returned access token as a bearer token.
+
+For a protected request:
 
 ```sh
-curl -X POST http://127.0.0.1:8000/api/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"person@example.com","password":"correct-horse-battery"}'
-```
-
-Log in and copy the returned `access_token`:
-
-```sh
-curl -X POST http://127.0.0.1:8000/api/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"person@example.com","password":"correct-horse-battery"}'
-```
-
-Use the token on protected requests:
-
-```sh
-curl http://127.0.0.1:8000/api/auth/me \
+curl https://expense-tracker-uwrp.onrender.com/api/auth/me \
   -H 'Authorization: Bearer YOUR_ACCESS_TOKEN'
 ```
 
@@ -220,8 +211,6 @@ All paths below are relative to the deployed API base URL. A trailing slash is a
 
 | Method | Path | Auth | Purpose |
 |---|---|---:|---|
-| POST | `/api/auth/register` | No | Create a user and seed default categories |
-| POST | `/api/auth/login` | No | Return a local JWT |
 | GET | `/api/auth/me` | Yes | Return the authenticated user |
 
 ### Accounts
@@ -324,8 +313,7 @@ Use one configurable base URL per environment:
 
 ```text
 Development: http://127.0.0.1:8000
-Staging:     https://staging-api.example.com
-Production:  https://api.example.com
+Production:  https://expense-tracker-uwrp.onrender.com
 ```
 
 Mobile devices cannot reach a computer's `127.0.0.1`; use the development machine's LAN address or a secure tunnel during local device testing. Never ship a database URL or `SECRET_KEY` in a client application.
@@ -369,13 +357,14 @@ A server-to-server integration should:
 
 ## Deployment
 
-Railway and Render are suitable first hosting options. A generic deployment uses:
+The backend is deployed on Render at `https://expense-tracker-uwrp.onrender.com`.
+A Render deployment uses:
 
 - Build command: `pip install -r backend/requirements.txt`
 - Start command: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
 - Health check path: `/health`
-- Required secrets: `DATABASE_URL`, `SECRET_KEY`
-- Optional setting: `ACCESS_TOKEN_EXPIRE_MINUTES`
+- Required secrets: `DATABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`
+- Recommended setting: `TESTING=0`
 
 ### PostgreSQL/Supabase setup
 
@@ -383,11 +372,12 @@ Railway and Render are suitable first hosting options. A generic deployment uses
 2. Copy a pooled PostgreSQL connection string.
 3. Convert the driver to the async SQLAlchemy form, such as `postgresql+asyncpg://...`.
 4. Set `DATABASE_URL` in the hosting provider.
-5. Set a unique production `SECRET_KEY`.
+5. Set `SUPABASE_JWKS_URL` and `SUPABASE_ISSUER` for the Supabase project.
 6. Run `alembic upgrade head` from `backend`, either as a release command or during startup.
-7. Verify `/health`, registration, login, and one protected CRUD request.
+7. Verify `/health` and one protected CRUD request using a Supabase access token.
 
-Supabase can provide the database immediately. The current service still owns JWT authentication and does not yet use Supabase Auth. Migrating identity requires coordinated backend and client changes.
+Supabase provides both the production database and authentication provider. The
+backend verifies Supabase-issued RS256 tokens through the project's JWKS endpoint.
 
 ### Production CORS
 
@@ -396,8 +386,8 @@ The current code permits all origins for development convenience. Before exposin
 ### Release verification
 
 ```sh
-curl https://YOUR_HOST/health
-curl https://YOUR_HOST/openapi.json
+curl https://expense-tracker-uwrp.onrender.com/health
+curl https://expense-tracker-uwrp.onrender.com/openapi.json
 ```
 
 Then exercise registration, login, account creation, transaction creation, forecast retrieval, and a cross-user access test. Configure uptime monitoring, centralized logs, error tracking, database backups, and TLS before real users depend on the service.
@@ -422,10 +412,10 @@ For the full operational checklist, see [docs/INFRASTRUCTURE.md](docs/INFRASTRUC
 
 - The repository is API-only; no frontend is currently part of this project.
 - Integration tests for the complete endpoint surface are still pending.
-- Local JWT auth is used instead of Supabase Auth.
+- Supabase Auth is required in production; local HS256 tokens are test-only.
 - The documented automatic `is_recurring` to recurring-rule workflow is not complete.
 - Changing a transaction's type or account is not yet supported as a balance-preserving operation; amount changes are handled.
-- Forecasting is naive and based primarily on rolling historical averages.
+- Forecasting uses LightGBM regressors with rolling, lag, velocity, and seasonality features.
 - Prediction generation is request-driven; scheduled jobs are not yet implemented.
 - CORS is permissive by default and must be hardened for production.
 - The API does not yet provide idempotency keys for safe external retries.
@@ -464,5 +454,5 @@ Before calling a deployment production-ready:
 - [ ] `/health` and database readiness monitoring are configured.
 - [ ] Backups and restoration have been tested.
 - [ ] Logs and error reporting exclude credentials and sensitive financial data.
-- [ ] A stable HTTPS API URL is configured in every client.
+- [x] A stable HTTPS API URL is configured for client integration: `https://expense-tracker-uwrp.onrender.com`.
 - [ ] The client handles token expiry, validation errors, timeouts, and retries.
