@@ -30,6 +30,17 @@ class CategoryBase(BaseModel):
 class CategoryCreate(CategoryBase):
     pass
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "Groceries",
+                "type": "expense",
+                "parent_id": None,
+                "color": "#EF5350",
+                "icon": "🍔"
+            }
+        }
+
 
 class Category(CategoryBase):
     id: str
@@ -38,6 +49,18 @@ class Category(CategoryBase):
     
     class Config:
         from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": "cat_abc123",
+                "auth_user_id": "user_123",
+                "name": "Groceries",
+                "type": "expense",
+                "parent_id": None,
+                "color": "#EF5350",
+                "icon": "🍔",
+                "created_at": "2026-01-15T10:30:00"
+            }
+        }
 
 
 class AccountBase(BaseModel):
@@ -49,11 +72,29 @@ class AccountBase(BaseModel):
 class AccountCreate(AccountBase):
     pass
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "Checking Account",
+                "currency": "USD",
+                "initial_balance": 1000.00
+            }
+        }
+
 
 class AccountUpdate(BaseModel):
     name: Optional[str] = None
     currency: Optional[str] = None
     current_balance: Optional[float] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "Savings Account",
+                "currency": "USD",
+                "current_balance": 5000.00
+            }
+        }
 
 
 class Account(AccountBase):
@@ -65,6 +106,18 @@ class Account(AccountBase):
     
     class Config:
         from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": "acc_abc123",
+                "auth_user_id": "user_123",
+                "name": "Checking Account",
+                "currency": "USD",
+                "initial_balance": 1000.00,
+                "current_balance": 1500.50,
+                "created_at": "2026-01-15T10:30:00",
+                "updated_at": "2026-09-07T10:30:00"
+            }
+        }
 
 
 class TransactionBase(BaseModel):
@@ -83,6 +136,23 @@ class TransactionCreate(TransactionBase):
     recurring_frequency: Optional[int] = Field(default=None, ge=1)
     recurring_expected_date: Optional[datetime] = None
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "type": "expense",
+                "amount": 25.50,
+                "category": "Food & Dining",
+                "description": "Lunch at cafe",
+                "merchant": "Local Cafe",
+                "date": "2026-09-07T12:30:00",
+                "is_recurring": 0,
+                "account_id": "acc_abc123",
+                "recurring_pattern": "monthly",
+                "recurring_frequency": 1,
+                "recurring_expected_date": "2026-10-01T00:00:00"
+            }
+        }
+
 
 class TransactionUpdate(BaseModel):
     amount: Optional[float] = None
@@ -91,6 +161,18 @@ class TransactionUpdate(BaseModel):
     merchant: Optional[str] = None
     date: Optional[datetime] = None
     is_recurring: Optional[int] = None
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "amount": 30.00,
+                "category": "Food & Dining",
+                "description": "Updated lunch description",
+                "merchant": "Cafe Updated",
+                "date": "2026-09-07T13:00:00",
+                "is_recurring": 0
+            }
+        }
 
 
 class Transaction(TransactionBase):
@@ -136,6 +218,17 @@ class RecurringRuleBase(BaseModel):
 class RecurringRuleCreate(RecurringRuleBase):
     transaction_id: Optional[str] = None
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "pattern": "monthly",
+                "frequency": 1,
+                "expected_amount": 1500.00,
+                "expected_date": "2026-10-01T00:00:00",
+                "transaction_id": "txn_abc123"
+            }
+        }
+
 
 class RecurringRule(RecurringRuleBase):
     id: str
@@ -146,6 +239,19 @@ class RecurringRule(RecurringRuleBase):
     
     class Config:
         from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": "rule_abc123",
+                "auth_user_id": "user_123",
+                "transaction_id": "txn_abc123",
+                "pattern": "monthly",
+                "frequency": 1,
+                "expected_amount": 1500.00,
+                "expected_date": "2026-10-01T00:00:00",
+                "last_matched": None,
+                "created_at": "2026-09-07T10:30:00"
+            }
+        }
 
 
 class PredictionBase(BaseModel):
@@ -255,6 +361,17 @@ class BudgetRecommendationItem(BaseModel):
     status: str
     suggested_budget: float
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "category": "Food & Dining",
+                "monthly_average": 600.0,
+                "percent_of_income": 12.0,
+                "status": "moderate",
+                "suggested_budget": 540.0
+            }
+        }
+
 
 class BudgetRecommendations(BaseModel):
     avg_monthly_income: float
@@ -288,6 +405,17 @@ class CategoryAnalysisItem(BaseModel):
     transaction_count: int
     percent_of_total: float
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "category": "Food & Dining",
+                "total_spent": 1800.0,
+                "monthly_average": 600.0,
+                "transaction_count": 45,
+                "percent_of_total": 17.1
+            }
+        }
+
 
 class CategoryAnalysis(BaseModel):
     period: str
@@ -320,6 +448,14 @@ class CategorizeSuggestRequest(BaseModel):
     description: str
     merchant: Optional[str] = None
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "description": "Starbucks Coffee",
+                "merchant": "Starbucks"
+            }
+        }
+
 
 class CategorizeSuggestResponse(BaseModel):
     suggested_category: Optional[str]
@@ -343,6 +479,16 @@ class CategorizeCorrectionRequest(BaseModel):
     merchant: Optional[str] = None
     suggested_category: str
     corrected_category: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "description": "Starbucks Coffee",
+                "merchant": "Starbucks",
+                "suggested_category": "Food & Dining",
+                "corrected_category": "Food & Dining"
+            }
+        }
 
 
 class CategorizeTrainResponse(BaseModel):

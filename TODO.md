@@ -120,8 +120,8 @@ Phased migration documented in [MIGRATION.md](MIGRATION.md). Scope: backend only
 
 - [x] Define the recurring transaction request contract and automatically create a recurring rule when a transaction is marked recurring.
 - [x] Validate recurring patterns and positive frequencies with Pydantic constraints.
-- [ ] Add explicit error handling and rollback behavior around migration and database failures.
-- [ ] Reconcile the cache documentation with the implemented `budget_analysis` cache type.
+- [x] Add explicit error handling and rollback behavior around migration and database failures.
+- [x] Reconcile the cache documentation with the implemented `budget_analysis` cache type.
 - [x] Make the app factory and `main.py` use the same router and lifespan configuration.
 - [ ] Add OpenAPI examples and response schemas for forecast, budget, recurring, and categorization endpoints.
 
