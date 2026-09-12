@@ -1,6 +1,6 @@
 # Expense Tracker Delivery Checklist
 
-Status: API is deployed with Supabase Auth; mobile integration is the next client-side phase.
+Status: API foundation, Supabase Auth migration, P0, and P2 are complete; P1 is partially complete; P3 is planned. The backend is deployed, but mobile integration is still the next client-side phase.
 
 Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs/P0_PLAN.md).
 
@@ -62,6 +62,13 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 	not read by the application, and `TESTING=0` (or unset) selects Supabase JWT
 	verification. The deployed API base URL should be recorded here once finalized:
 	`https://expense-tracker-uwrp.onrender.com`.
+- **2026-09-10**: Documentation consistency pass. Removed the stale duplicate
+	P1–P3 checklist and corrected the remaining P1 statuses against the
+	implementation. Repaired the uncommitted forecast OpenAPI example syntax and
+	added missing `Transaction`, `CashflowForecastDay`, and `AnomalyItem` schema
+	examples, and pointed root `MIGRATION.md` to `docs/MIGRATION.md`. Verified
+	`backend/venv/bin/python -m pytest -q backend/tests`
+	(82 passed) and `backend/venv/bin/python -m compileall -q backend/app backend/tests`.
 
 ## P0 - Make the current API trustworthy
 
@@ -85,7 +92,7 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 
 ## Auth Migration - Local JWT → Supabase Auth
 
-Phased migration documented in [MIGRATION.md](MIGRATION.md). Scope: backend only; clients are unaffected until Phase 5 (mobile repo integration).
+Phased migration documented in [docs/MIGRATION.md](docs/MIGRATION.md). Scope: backend only; clients are unaffected until Phase 5 (mobile repo integration).
 
 - [x] **Phase 1**: Backend token verification (Supabase JWT validator in `app/utils/supabase_auth.py`, 10 unit tests, 72 tests still pass)
 - [x] **Phase 2**: Schema change for `auth.users` FK (Alembic migration `59062dbe3d50`, cross-schema FK to `auth.users.id` on 6 tables, UUID type, reversible)
@@ -100,56 +107,28 @@ Phased migration documented in [MIGRATION.md](MIGRATION.md). Scope: backend only
 
 ## P1 - Finish documented functionality
 
-- [x] Define the recurring transaction request contract and automatically create a recurring rule when a transaction is marked recurring.
-- [x] Validate recurring patterns and positive frequencies with Pydantic constraints.
-- [x] Add explicit error handling and rollback behavior around migration and database failures.
-- [ ] Reconcile the cache documentation with the implemented `budget_analysis` cache type.
-- [x] Make the app factory and `main.py` use the same router and lifespan configuration.
-- [ ] Add OpenAPI examples and response schemas for forecast, budget, recurring, and categorization endpoints.
+- [x] Define the recurring transaction request contract and automatically create a recurring rule when a transaction is marked recurring. Implemented conditionally: `TransactionCreate` carries the recurring fields, and `create_transaction` creates a `RecurringRule` only when `is_recurring` plus pattern, frequency, and expected date are supplied.
+- [x] Validate recurring patterns and positive frequencies with Pydantic constraints. Implemented: `RecurringPattern` enum, `frequency >= 1`, and `expected_amount > 0`. A future-date check for `expected_date` is still missing.
+- [ ] Add explicit error handling and rollback behavior around migration and database failures. Exception handlers, `with_retry`, and `with_db_transaction` exist, but routes and migrations do not consistently use them; no circuit breaker is implemented.
+- [x] Reconcile the cache documentation with the implemented `budget_analysis` cache type. The application cache module documents and implements both 7-day budget cache types; `README.md` and `docs/INFRASTRUCTURE.md` are also updated in this pass.
+- [ ] Make the app factory and `main.py` use the same router and lifespan configuration. `backend/app/factory.py` exists, but it omits routes, CORS, logging middleware, `/`, and `/health`, while `backend/main.py` duplicates lifespan and router configuration.
+- [ ] Add OpenAPI examples and response schemas for forecast, budget, recurring, and categorization endpoints. Most schemas have examples; forecast has route-level success/error examples, while the other routers generally expose only short descriptions and `401` responses.
 
 ## P2 - ML upgrade
 
 - [x] Add separate LightGBM income and expense regressors.
 - [x] Add seasonality, spend velocity, and other documented features.
-- [x] Add scheduled prediction generation and cache writes.
+- [x] Add request-driven prediction generation and cache writes. No scheduler is implemented.
 - [x] Add confidence ranges to forecast responses.
 - [x] Add model versioning and reproducible training metadata.
 
 ## P3 - Production hardening
 
-- [x] Move authentication to Supabase Auth (completed)
+- [x] Move authentication to Supabase Auth (completed).
 - [ ] Use a strong production `SECRET_KEY` and environment-specific CORS origins.
-- [ ] Add rate limiting, structured logs, backups, and error monitoring.
-	- [ ] Run migrations as a release step and add a health check that verifies database connectivity.
-	- [x] Deploy the API and configure the `/health` endpoint for Render. Record the
-		stable HTTPS URL `https://expense-tracker-uwrp.onrender.com` and the mobile
-		client configuration.
-- [ ] Add CI for tests, syntax checks, and dependency/security scanning.
-
-## P1 - Finish documented functionality
-
-- [x] Define the recurring transaction request contract and automatically create a recurring rule when a transaction is marked recurring.
-- [x] Validate recurring patterns and positive frequencies with Pydantic constraints.
-- [x] Add explicit error handling and rollback behavior around migration and database failures.
-- [x] Reconcile the cache documentation with the implemented `budget_analysis` cache type.
-- [x] Make the app factory and `main.py` use the same router and lifespan configuration.
-- [ ] Add OpenAPI examples and response schemas for forecast, budget, recurring, and categorization endpoints.
-
-## P2 - ML upgrade
-
-- [ ] Add separate LightGBM income and expense regressors.
-- [ ] Add seasonality, spend velocity, and other documented features.
-- [ ] Add scheduled prediction generation and cache writes.
-- [ ] Add confidence ranges to forecast responses.
-- [ ] Add model versioning and reproducible training metadata.
-
-## P3 - Production hardening
-
-- [ ] Move authentication to Supabase Auth or document the decision to retain local JWT.
-- [ ] Use a strong production `SECRET_KEY` and environment-specific CORS origins.
-- [ ] Add rate limiting, structured logs, backups, and error monitoring.
-- [ ] Run migrations as a release step and add a health check that verifies database connectivity.
-- [ ] Deploy the API and configure a stable HTTPS URL for mobile and desktop clients.
+- [ ] Add production rate limiting, structured logs, backups, and error monitoring. `slowapi` is installed and `/api/categorize/train` is limited; broader limits and monitoring remain.
+- [ ] Run migrations as a release step. Startup currently runs `alembic upgrade head`; the basic `/health` endpoint checks database connectivity with `SELECT 1`.
+- [x] Deploy the API and configure the `/health` endpoint for Render. Record the stable HTTPS URL `https://expense-tracker-uwrp.onrender.com` and the mobile client configuration.
 - [ ] Add CI for tests, syntax checks, and dependency/security scanning.
 
 ## Definition of done

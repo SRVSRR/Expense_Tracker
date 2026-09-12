@@ -110,17 +110,20 @@ Each phase is additive and reversible. Local JWT remains functional until Phase 
 
 ---
 
-## Phase 5: Mobile Integration (📋 Planned)
+## Phase 5: Mobile Integration (✅ Backend guidance ready)
 
-**Goal**: Document mobile client integration with Supabase Auth.
+**Goal**: Document the backend-side mobile client integration contract.
 
 **Scope:**
 - Mobile repo uses `@supabase/supabase-js` directly
 - No custom auth screens in mobile app
 - Backend only verifies Supabase JWT
-- Update mobile repo auth phase tasks
+- Mobile implementation itself remains in the separate mobile repository
 
-**Timeline**: When mobile repo Phase 1 begins.
+**Backend contract:**
+- API base URL: `https://expense-tracker-uwrp.onrender.com`
+- Auth: `Authorization: Bearer <Supabase access token>`
+- Health check: `https://expense-tracker-uwrp.onrender.com/health`
 
 ---
 
@@ -144,7 +147,7 @@ Each phase is additive and reversible. Local JWT remains functional until Phase 
 - [x] Phase 2: FK schema migration applies/reverts cleanly
 - [x] Phase 3: `AUTH_MODE=supabase` disables local auth; `AUTH_MODE=local` works
 - [x] Phase 4: No local auth code remains; all 82 tests pass
-- [ ] Phase 5: Mobile integration guide written (when mobile repo starts)
+- [x] Phase 5: Backend mobile-integration guidance is documented; mobile-repo implementation remains separate.
 
 ---
 

@@ -23,11 +23,14 @@ The local `.env` should use the Supabase Transaction pooler:
 
 ```env
 DATABASE_URL=postgresql+asyncpg://postgres.<project-ref>:<password>@<pooler-host>:6543/postgres
+SUPABASE_JWKS_URL=https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json
+SUPABASE_ISSUER=https://<project-ref>.supabase.co/auth/v1
 SECRET_KEY=replace-with-a-long-random-development-value
+TESTING=0
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
 
-The API startup runs Alembic migrations against Supabase. Do not commit `.env` or expose the database URL.
+`SECRET_KEY` and local HS256 tokens are used only by the isolated automated-test fixtures. The API startup runs Alembic migrations against Supabase. Do not commit `.env` or expose the database URL.
 
 ## Supabase/PostgreSQL
 
@@ -41,9 +44,9 @@ The API startup runs Alembic migrations against Supabase. Do not commit `.env` o
 alembic upgrade head
 ```
 
-6. Confirm `/health`, `/docs`, registration, login, and a protected endpoint.
+6. Confirm `/health`, `/docs`, and a protected endpoint with a Supabase-issued access token.
 
-The current API uses local JWT authentication. Supabase can provide PostgreSQL immediately, but switching identity to Supabase Auth is a separate migration and requires client token changes.
+Production authentication uses Supabase Auth exclusively. There are no backend registration or login endpoints.
 
 ## Hosting
 
@@ -52,7 +55,7 @@ Railway or Render are suitable for the API. Configure a Python service with:
 - Build command: `pip install -r backend/requirements.txt`
 - Start command: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
 - Health path: `/health`
-- Environment variables: `DATABASE_URL`, `SECRET_KEY`, and `ACCESS_TOKEN_EXPIRE_MINUTES`
+- Environment variables: `DATABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`, `SECRET_KEY`, `TESTING`, and `ACCESS_TOKEN_EXPIRE_MINUTES`
 
 Use the provider's managed HTTPS URL as the client base URL. Set production CORS to the actual mobile/web client origins instead of `*` when browser clients are introduced. Never expose the database URL or JWT secret to mobile or desktop clients.
 
@@ -60,12 +63,27 @@ Use the provider's managed HTTPS URL as the client base URL. Set production CORS
 
 Clients call the deployed base URL with the `/api` prefix, for example:
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
+- `GET /api/auth/me`
 - `GET /api/accounts/`
 - `GET /api/transactions/`
 
-After login, send `Authorization: Bearer <access_token>` on every protected request. Store the token using the platform's secure storage. On HTTP 401, clear the token and return the user to login.
+Obtain the access token from Supabase Auth, then send `Authorization: Bearer <access_token>` on every protected request. Store the token using the platform's secure storage. On HTTP 401, clear the token and return the user to the Supabase Auth login flow.
+
+## Release checklist
+
+## Prediction cache
+
+Prediction results are cached by user in the `predictions` table:
+
+| Type | TTL | Cache writer |
+|---|---|---|
+| `cashflow` | 24 hours | Request-driven `/api/forecast/cashflow` call |
+| `runway` | 12 hours | Request-driven `/api/forecast/runway` call |
+| `anomaly` | 24 hours | Request-driven `/api/forecast/anomalies` call |
+| `budget` | 7 days | Request-driven `/api/budget/recommendations` call |
+| `budget_analysis` | 7 days | Request-driven `/api/budget/category-analysis` call |
+
+There is no scheduler yet. Transaction, account, and recurring-rule mutations invalidate the affected user's cached predictions.
 
 ## Release checklist
 
@@ -73,7 +91,7 @@ After login, send `Authorization: Bearer <access_token>` on every protected requ
 - Set secrets in the hosting provider, not in source control.
 - Run `alembic upgrade head`.
 - Deploy and check `/health` and `/docs`.
-- Register a test user and exercise account and transaction CRUD.
+- Exercise account and transaction CRUD with a Supabase-issued access token.
 - Verify a second user cannot read or mutate the first user's data.
 - Configure logs, uptime monitoring, and error tracking.
 - Record the deployed API URL in each client repository's environment configuration.

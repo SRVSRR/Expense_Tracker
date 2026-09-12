@@ -181,9 +181,25 @@ class Transaction(TransactionBase):
     account_id: str
     created_at: datetime
     updated_at: datetime
-    
+
     class Config:
         from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": "txn_abc123",
+                "auth_user_id": "user_123",
+                "account_id": "acc_abc123",
+                "type": "expense",
+                "amount": 25.50,
+                "category": "Food & Dining",
+                "description": "Lunch at cafe",
+                "merchant": "Local Cafe",
+                "date": "2026-09-07T12:30:00",
+                "is_recurring": 0,
+                "created_at": "2026-09-07T12:30:01",
+                "updated_at": "2026-09-07T12:30:01"
+            }
+        }
 
 
 class UserBase(BaseModel):
@@ -277,6 +293,18 @@ class CashflowForecastDay(BaseModel):
     income_confidence_interval: Optional[Dict[str, float]] = None
     expense_confidence_interval: Optional[Dict[str, float]] = None
 
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "date": "2026-09-08",
+                "projected_balance": 5114.50,
+                "expected_income": 100.00,
+                "expected_expense": 85.50,
+                "income_confidence_interval": {"lower": 75.00, "upper": 125.00},
+                "expense_confidence_interval": {"lower": 60.00, "upper": 110.00}
+            }
+        }
+
 
 class CashflowForecast(BaseModel):
     period_days: int
@@ -327,6 +355,19 @@ class AnomalyItem(BaseModel):
     date: str
     category_avg: float
     deviation_ratio: float
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "transaction_id": "txn_abc123",
+                "amount": 500.00,
+                "category": "Food & Dining",
+                "description": "Expensive dinner",
+                "date": "2026-09-01T19:30:00",
+                "category_avg": 45.00,
+                "deviation_ratio": 11.11
+            }
+        }
 
 
 class AnomaliesResponse(BaseModel):

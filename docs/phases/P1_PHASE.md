@@ -23,7 +23,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ## Tasks
 
 ### 1. Recurring Transaction Contract & Auto-Creation
-**Status**: Not Started  
+**Status**: Partially complete — schema and conditional creation are implemented, but dedicated integration coverage for the transaction-to-rule link is missing.
 **Priority**: High
 
 **Requirements:**
@@ -46,7 +46,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ---
 
 ### 2. Pydantic Constraints for Recurring Patterns
-**Status**: Not Started  
+**Status**: Partially complete — enum, `frequency >= 1`, and positive-amount validation are implemented; future-date validation and unsupported `biweekly`/`quarterly` occurrence expansion remain.
 **Priority**: High
 
 **Requirements:**
@@ -67,7 +67,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ---
 
 ### 3. Error Handling & Rollback for Migrations/DB Failures
-**Status**: Not Started  
+**Status**: Partially complete — shared exceptions, SQLAlchemy handlers, retry and transaction helpers exist but are not consistently wired into routes or migrations; no circuit breaker is implemented.
 **Priority**: Medium
 
 **Requirements:**
@@ -92,7 +92,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ---
 
 ### 4. Cache Documentation Reconciliation
-**Status**: Not Started  
+**Status**: Complete — `budget_analysis` is documented in the application cache module, TTL table, README, and infrastructure runbook.
 **Priority**: Medium
 
 **Requirements:**
@@ -117,7 +117,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ---
 
 ### 5. App Factory / main.py Alignment
-**Status**: Not Started  
+**Status**: Partially complete — `backend/app/factory.py` exists, but it omits routers, CORS, logging middleware, `/`, and `/health`; `backend/main.py` still duplicates lifespan and router configuration.
 **Priority**: Medium
 
 **Requirements:**
@@ -139,7 +139,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ---
 
 ### 6. OpenAPI Examples for All Endpoints
-**Status**: Partially Done (forecast done)  
+**Status**: Partially complete — most response schemas and all three forecast routes have examples; budget, recurring, categorize, account, transaction, category, and auth routes generally expose summaries without per-status examples.
 **Priority**: Medium
 
 **Requirements:**

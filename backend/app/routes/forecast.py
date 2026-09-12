@@ -37,6 +37,8 @@ def _convert_ml_forecast_to_cashflow(ml_data: dict, days: int) -> dict:
             "projected_balance": f["projected_balance"],
             "expected_income": f["expected_income"],
             "expected_expense": f["expected_expense"],
+            "income_confidence_interval": f.get("income_confidence_interval"),
+            "expense_confidence_interval": f.get("expense_confidence_interval"),
         })
     
     return {
@@ -47,14 +49,160 @@ def _convert_ml_forecast_to_cashflow(ml_data: dict, days: int) -> dict:
     }
 
 
+CASHFLOW_200_EXAMPLE = {
+    "period_days": 30,
+    "avg_daily_income": 100.0,
+    "avg_daily_expense": 85.5,
+    "forecast": [
+        {
+            "date": "2026-09-08",
+            "projected_balance": 5114.5,
+            "expected_income": 100.0,
+            "expected_expense": 85.5,
+            "income_confidence_interval": {"lower": 75.0, "upper": 125.0},
+            "expense_confidence_interval": {"lower": 60.0, "upper": 110.0}
+        },
+        {
+            "date": "2026-09-09",
+            "projected_balance": 5129.0,
+            "expected_income": 100.0,
+            "expected_expense": 85.5,
+            "income_confidence_interval": {"lower": 75.0, "upper": 125.0},
+            "expense_confidence_interval": {"lower": 60.0, "upper": 110.0}
+        },
+        {
+            "date": "2026-09-10",
+            "projected_balance": 5143.5,
+            "expected_income": 100.0,
+            "expected_expense": 85.5,
+            "income_confidence_interval": {"lower": 75.0, "upper": 125.0},
+            "expense_confidence_interval": {"lower": 60.0, "upper": 110.0}
+        }
+    ]
+}
+
+RUNWAY_200_EXAMPLE = {
+    "current_balance": 15000.0,
+    "avg_daily_income": 100.0,
+    "avg_daily_expense": 120.0,
+    "net_daily_burn": 20.0,
+    "threshold": 1000.0,
+    "days_until_threshold": 450
+}
+
+ANOMALIES_200_EXAMPLE = {
+    "total_transactions_analyzed": 45,
+    "anomalies_found": 2,
+    "anomalies": [
+        {
+            "transaction_id": "txn_abc123",
+            "amount": 500.0,
+            "category": "Food & Dining",
+            "description": "Expensive dinner",
+            "date": "2026-09-01T19:30:00",
+            "category_avg": 45.0,
+            "deviation_ratio": 11.11
+        },
+        {
+            "transaction_id": "txn_def456",
+            "amount": 2500.0,
+            "category": "Electronics",
+            "description": "New laptop",
+            "date": "2026-09-05T14:22:00",
+            "category_avg": 120.0,
+            "deviation_ratio": 20.83
+        }
+    ]
+}
+
+ERROR_401 = {
+    "description": "Unauthorized - Missing or invalid JWT token",
+    "content": {
+        "application/json": {
+            "example": {
+                "error": {
+                    "code": "UNAUTHORIZED",
+                    "message": "Could not validate credentials",
+                    "details": {}
+                }
+            }
+        }
+    }
+}
+
+ERROR_404 = {
+    "description": "Not Found - Resource doesn't exist or access denied",
+    "content": {
+        "application/json": {
+            "example": {
+                "error": {
+                    "code": "NOT_FOUND",
+                    "message": "Resource not found",
+                    "details": {}
+                }
+            }
+        }
+    }
+}
+
+ERROR_422 = {
+    "description": "Validation Error",
+    "content": {
+        "application/json": {
+            "example": {
+                "detail": [
+                    {
+                        "loc": ["query", "days"],
+                        "msg": "ensure this value is greater than or equal to 7",
+                        "type": "value_error.number.not_ge",
+                        "input": 5
+                    }
+                ]
+            }
+        }
+    }
+}
+
+ERROR_500 = {
+    "description": "Internal Server Error",
+    "content": {
+        "application/json": {
+            "example": {
+                "error": {
+                    "code": "INTERNAL_ERROR",
+                    "message": "An unexpected error occurred",
+                    "details": {}
+                }
+            }
+        }
+    }
+}
+
+COMMON_ERRORS = {
+    401: ERROR_401,
+    404: ERROR_404,
+    422: ERROR_422,
+    500: ERROR_500,
+}
+
+
 @router.get(
     "/cashflow",
     response_model=CashflowForecast,
     summary="Cash flow forecast",
     description="Returns an ML-powered cash flow forecast with confidence intervals for the specified number of days. Cached for 24 hours.",
     responses={
-        200: {"description": "Successful response with forecast data"},
-        401: {"description": "Unauthorized - invalid or missing token"},
+        200: {
+            "description": "Successful response with forecast data",
+            "content": {
+                "application/json": {
+                    "example": CASHFLOW_200_EXAMPLE
+                }
+            }
+        },
+        401: ERROR_401,
+        422: ERROR_422,
+        500: ERROR_500,
     },
 )
 async def get_cashflow_forecast(
@@ -83,8 +231,17 @@ async def get_cashflow_forecast(
     summary="Runway prediction",
     description="Computes days until balance hits a threshold based on ML-projected net daily burn rate. Cached for 12 hours.",
     responses={
-        200: {"description": "Successful response with runway data"},
-        401: {"description": "Unauthorized - invalid or missing token"},
+        200: {
+            "description": "Successful response with runway data",
+            "content": {
+                "application/json": {
+                    "example": RUNWAY_200_EXAMPLE
+                }
+            }
+        },
+        401: ERROR_401,
+        422: ERROR_422,
+        500: ERROR_500,
     },
 )
 async def get_runway_forecast(
@@ -133,8 +290,16 @@ async def get_runway_forecast(
     summary="Anomaly detection",
     description="Detects per-category expense outliers (>2x category average). Cached for 24 hours.",
     responses={
-        200: {"description": "Successful response with anomaly data"},
-        401: {"description": "Unauthorized - invalid or missing token"},
+        200: {
+            "description": "Successful response with anomaly data",
+            "content": {
+                "application/json": {
+                    "example": ANOMALIES_200_EXAMPLE
+                }
+            }
+        },
+        401: ERROR_401,
+        500: ERROR_500,
     },
 )
 async def detect_anomalies(

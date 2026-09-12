@@ -37,7 +37,7 @@ Do not open public issues for security vulnerabilities. We will acknowledge rece
 - CORS configured for development (`allow_origins=["*"]`) — restrict in production (see Production Checklist)
 - Input validation via Pydantic schemas on all endpoints
 - SQL injection prevention via SQLAlchemy ORM (parameterized queries)
-- Rate limiting: not yet implemented (planned for P3)
+- Rate limiting: partially implemented with `slowapi`; ML training is limited to 2 requests/hour. Broader production limits and monitoring remain planned for P3.
 
 ### Email Enumeration
 **Supabase Auth handles registration**: Supabase's signup flow uses email verification and does not expose whether an email exists in the same way as a custom registration endpoint. The email enumeration trade-off from the previous local auth implementation no longer applies.

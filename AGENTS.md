@@ -60,13 +60,13 @@ correctness over frontend UI concerns.
 
 Completed:
 - **Phase 1 (Foundation)**: Full CRUD for accounts, transactions, categories — all scoped to authenticated user via JWT
-- **Phase 1 Auth**: JWT auth with bcrypt hashing, register/login/me endpoints
+- **Phase 1 Auth**: Local JWT auth originally included bcrypt-backed register/login/me endpoints; local register/login were later removed during the Supabase Auth cleanup
 - **Phase 2 (Recurring transactions)**: CRUD `/api/recurring`, occurrence expansion, upcoming transactions
 - **Phase 3 (Naive Forecasting)**: `/forecast/cashflow`, `/forecast/runway`, `/forecast/anomalies` — rolling 3-month average
 - **Phase 4 (Rule-based categorization)**: `/api/categorize/suggest` with keyword matching + fallback
 - **Phase 5 (ML categorization)**: `backend/app/ml/categorizer.py` — LightGBM classifier with TF-IDF features; model train via `/api/categorize/train`; confidence threshold 0.55 fallback; model info endpoint
 - **Phase 6 upgrade (prediction caching)**: `/api/forecast/*` and `/api/budget/*` endpoints now read from `predictions` table with TTL caching (24h/12h/24h/7d); `invalidate_predictions()` called on transaction create/update/delete
-- **P0 Test Infrastructure**: Isolated async integration-test fixtures with in-memory SQLite, auth helpers, 72 automated integration tests passing
+- **P0 Test Infrastructure**: Isolated async integration-test fixtures with in-memory SQLite, auth helpers, and 82 automated tests passing
 - **Auth Migration Phase 1**: Supabase JWT verification implemented in `app/utils/supabase_auth.py` (JWKS fetching/caching, RS256 verification, audience/issuer/expiry validation); 10 unit tests pass; all 72 existing integration tests still pass (82 total); local JWT auth remains live path — Supabase verifier is additive and isolated for Phase 2+ integration
 - **Auth Migration Phase 2**: Schema change for `auth.users` FK — Alembic migration `59062dbe3d50` adds `auth_user_id` (UUID) columns with FK to `auth.users.id` on 6 tables (`accounts`, `transactions`, `categories`, `recurring_rules`, `predictions`, `correction_logs`). Cross-schema FK validated against Supabase `auth` schema. Migration is reversible. Models updated with conditional `auth_user_id_column()` helper for test compatibility (SQLite). All 82 tests pass.
 - **Auth Migration Phase 3**: `get_current_user` uses Supabase JWT verification in production and local HS256 JWTs only when `TESTING=1`. `AUTH_MODE` is not read by the application. Test fixtures create users directly with local JWT tokens (simulating Supabase user IDs). All 82 tests pass.
@@ -104,7 +104,7 @@ client must use `@supabase/supabase-js`, send Supabase access tokens as Bearer
 | **Database (runtime)** | PostgreSQL via Supabase Transaction pooler | Port 6543; `statement_cache_size=0` |
 | **Database (tests)** | In-memory SQLite via `aiosqlite` | Isolated fixtures only; never production data |
 | **Auth** | Supabase Auth (RS256 via JWKS) | Local JWT (bcrypt + python-jose) retained for test fixtures only; Supabase Auth is sole provider |
-| **ML** | LightGBM, scikit-learn, pandas | Installed but not yet integrated |
+| **ML** | LightGBM, scikit-learn, pandas | Integrated for categorization and cash-flow/runway forecasting |
 | **Backend venv** | `backend/venv/` | Activate: `source venv/bin/activate` |
 
 ### Important compatibility notes
@@ -125,8 +125,8 @@ All endpoints are scoped to the authenticated user via JWT bearer token.
 | `/api/transactions` | GET /, POST / | List + create transactions |
 | `/api/transactions/{id}` | GET /, PUT /, DELETE / | Read/update/delete single transaction |
 | `/api/categories` | GET /, POST / | List + create categories |
-| `/api/forecast/cashflow` | GET | Rolling 3-month cashflow forecast (cached) |
-| `/api/forecast/runway` | GET | Runway prediction based on burn rate (cached) |
+| `/api/forecast/cashflow` | GET | LightGBM cash-flow forecast with 80% confidence intervals (cached) |
+| `/api/forecast/runway` | GET | Runway prediction from ML-projected burn rate (cached) |
 | `/api/forecast/anomalies` | GET | Per-category 2x-average outlier detection (cached) |
 | `/api/budget/recommendations` | GET | Rule-based budget recommendations (cached, 7d TTL) |
 | `/api/budget/category-analysis` | GET | Spending analysis by category (cached, 7d TTL) |
@@ -143,21 +143,21 @@ All endpoints are scoped to the authenticated user via JWT bearer token.
 | `runway` | 12 hours |
 | `anomaly` | 24 hours |
 | `budget` | 7 days |
+| `budget_analysis` | 7 days |
 
 ### Authentication
 
 All API endpoints require a valid JWT bearer token issued by Supabase Auth (RS256).
-The token is read from `SecureStore` (iOS) or `AsyncStorage` (Android) and attached to requests via
-the interceptor in `frontend/src/api/client.ts`. If the token is expired or
-invalid, the 401 interceptor silently deletes the token from SecureStore and
-the app should redirect to the Supabase Auth login flow.
+Mobile and desktop clients should store the token in secure platform storage and
+attach it to requests as a Bearer token. If the token is expired or invalid,
+the client should delete the stored token and redirect to the Supabase Auth login flow.
 Registration and login are handled entirely by Supabase Auth (email/password, OAuth providers).
 The backend only verifies the Supabase-issued JWT via JWKS.
 
 ### Conventions
 
 - **Python**: type hints throughout; keep Pydantic models accurate
-- **SQLite**: `echo=False` in engine config; alembic uses sync engine
+- **SQLite**: `echo=False` in engine config; Alembic migrations use a sync engine
 - **CORS**: `allow_origins=["*"]` — configure for production
 - **API namespace**: `/accounts`, `/transactions`, `/forecast/cashflow`, etc.
 - **All endpoints scoped**: never return another user's data
@@ -185,7 +185,7 @@ Completed:
 - Upcoming transactions auto-generated from rules with occurrence expansion.
 - Recurring rule created automatically when transaction is marked recurring.
 
-### Phase 3: Naive forecasting ✅ DONE
+### Phase 3: Naive forecasting ✅ DONE (later superseded by P2 LightGBM forecasting)
 
 Completed:
 - Backend `/forecast/cashflow`: Rolling 3-month average (naive model).
@@ -217,7 +217,7 @@ Completed:
 Completed:
 - Backend forecast/budget endpoints read from `predictions` table with TTL
 - Transaction create/update/delete calls `invalidate_predictions()`
-- TTLs: cashflow 24h, runway 12h, anomaly 24h, budget 7d
+- TTLs: cashflow 24h, runway 12h, anomaly 24h, budget/budget_analysis 7d
 
 ### Phase 7: Runway prediction ✅ DONE
 
@@ -264,11 +264,12 @@ future phases.
 | 2026-09-07 | OpenAPI/schema docs | Comprehensive OpenAPI schema with metadata, tags, servers, security schemes, and detailed descriptions. Swagger UI at `/docs`, ReDoc at `/redoc`. |
 | 2026-09-07 | ML Upgrade (P2) | Added `backend/app/ml/forecasting.py` with `ForecastRegressor` + `ForecastManager` — separate LightGBM income/expense regressors, feature engineering (seasonality, velocity, rolling windows, lag features, expanding windows, cyclical encoding), time-series CV, confidence intervals (80%), model versioning. Updated `backend/app/routes/forecast.py` to use ML forecasting. Added `CashflowForecastDay`, `CashflowForecast`, `RunwayForecast`, `AnomaliesResponse` with confidence intervals in `backend/app/schemas/__init__.py`. All 82 tests pass. |
 | 2026-09-07 | P1 Progress | Added `RecurringPattern` enum (daily/weekly/biweekly/monthly/quarterly/yearly) and Pydantic validation to `TransactionCreate` and `RecurringRuleBase`. Transaction creation auto-creates `RecurringRule` when `is_recurring=1` with required fields. Added `RecurringRule` schema with `auth_user_id`. All 82 tests pass. |
-| 2026-09-07 | Error Handling & App Factory | Added `app/utils/exceptions.py` with custom exceptions (ValidationError, NotFoundError, ConflictError, DatabaseError, MigrationError, ExternalServiceError) and SQLAlchemy error handlers. Created `app/factory.py` with `create_app()` factory function; `main.py` now uses factory. Added `with_retry` decorator for DB operations and `with_db_transaction` context manager. All 82 tests pass. |
+| 2026-09-07 | Error Handling & App Factory | Added `app/utils/exceptions.py` with custom exceptions (ValidationError, NotFoundError, ConflictError, DatabaseError, MigrationError, ExternalServiceError) and SQLAlchemy error handlers. Created `app/factory.py` with `create_app()` factory function; `main.py` now uses factory. Added `with_retry` decorator for DB operations and `with_db_transaction` context manager. Helpers are not yet used consistently across routes/migrations, and no circuit breaker exists. All 82 tests pass. |
+| 2026-09-10 | Documentation consistency | Repaired forecast route-example syntax, added missing `Transaction`, `CashflowForecastDay`, and `AnomalyItem` OpenAPI schema examples, removed the stale duplicate P1–P3 checklist, corrected P1/P2/P3 checklist states, reconciled `budget_analysis` cache documentation, and pointed root `MIGRATION.md` to `docs/MIGRATION.md`. Verified `backend/venv/bin/python -m pytest -q backend/tests` (82 passed) and `backend/venv/bin/python -m compileall -q backend/app backend/tests`. |
 
 ## What to do next (priority order)
 
-1. **P1: Finish documented functionality** — Cache documentation and OpenAPI examples
+1. **P1: Finish documented functionality** — Future-date validation, `biweekly`/`quarterly` expansion, consistent error-handler/retry use, app-factory/router alignment, route-level OpenAPI examples
 2. **P3: Production hardening** — Rate limiting, CI, monitoring, and production secret/CORS review
 3. **Mobile integration** — Configure the mobile repository with the final Render API URL and Supabase project settings
 
@@ -293,14 +294,14 @@ future phases.
       /db
         database.py               Async engine, session factory, init_db()
       /models
-        __init__.py               SQLAlchemy ORM: User, Account, Transaction, Category, RecurringRule, Prediction
+        __init__.py               SQLAlchemy ORM: auth-users lookup, Account, Transaction, Category, RecurringRule, Prediction, CorrectionLog
       /schemas
         __init__.py               Pydantic request/response schemas
       /routes
         __init__.py
-        auth.py                   POST /register, POST /login, GET /me
+        auth.py                   GET /me
         accounts.py               CRUD /accounts
-        transactions.py           CRUD /transactions (with filtering, balance updates)
+        transactions.py           CRUD /transactions (with filtering, balance updates, conditional recurring-rule creation)
         categories.py             CRUD /categories
         forecast.py               GET /forecast/cashflow, /runway, /anomalies
         budget.py                 GET /budget/recommendations, /category-analysis
@@ -308,16 +309,18 @@ future phases.
         categorize.py             POST /categorize/suggest, /categorize/corrections, /categorize/train
       /services
         categorize.py             Keyword-to-category mapping + suggest function
-        seed.py                     Default category seeding on signup
+        seed.py                   Default category seeding
+        prediction_cache.py       Prediction cache with TTL and invalidation
       /ml
         __init__.py
         categorizer.py            LightGBM classifier with TF-IDF features
-        saved_models/               Persisted models (auto-created on train)
+        forecasting.py            LightGBM income/expense forecast regressors
+        saved_models/             Persisted models (auto-created on train)
       /utils
-        __init__.py               JWT creation, password hashing, get_current_user dependency
+        __init__.py               Supabase auth verification, test JWT helpers, retry/transaction helpers
+        exceptions.py             Application and database error handlers
+        rate_limit.py             Rate-limit configuration
+        supabase_auth.py          Supabase JWKS verification
     /migrations                   Alembic migration config + versions
     /alembic.ini                  Alembic configuration
   /AGENTS.md
-
-Untracked:
-  backend/app/services/prediction_cache.py

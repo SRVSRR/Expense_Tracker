@@ -43,21 +43,20 @@ SQLAlchemy async database layer
         +-- PostgreSQL/Supabase for hosted environments
 ```
 
-The API uses asynchronous SQLAlchemy sessions and `aiosqlite` locally. PostgreSQL is supported through `asyncpg`. Application startup runs Alembic migrations before serving requests.
+The API uses asynchronous SQLAlchemy sessions. The runtime database is Supabase PostgreSQL through `asyncpg`; isolated automated tests use in-memory SQLite through `aiosqlite`. Application startup runs Alembic migrations before serving requests.
 
 ## Capabilities
 
 ### Implemented
 
-- User registration, login, and current-user lookup
-- Local JWT bearer authentication with bcrypt password hashes
+- Supabase Auth verification with current-user lookup at `GET /api/auth/me`
 - User-scoped account CRUD
 - User-scoped income and expense transaction CRUD
 - Account balance updates when transactions are created, amount-edited, or deleted
 - User-scoped category CRUD
 - Manual recurring rules and upcoming occurrence expansion
-- Rolling 90-day cash-flow forecast
-- Runway calculation based on average net daily burn
+- Conditional recurring-rule creation when a transaction supplies `is_recurring`, `recurring_pattern`, `recurring_frequency`, and `recurring_expected_date`
+- LightGBM cash-flow and runway forecasting with 80% confidence intervals
 - Category anomaly detection using a 2x category-average rule
 - Rule-based budget recommendations and category spending analysis
 - Keyword categorization with LightGBM/TF-IDF fallback and correction logging
@@ -66,11 +65,13 @@ The API uses asynchronous SQLAlchemy sessions and `aiosqlite` locally. PostgreSQ
 
 ### Planned
 
-- Scheduled prediction generation
-- Confidence ranges for forecast results
+- Scheduled prediction generation; current cache writes remain request-driven
 - Automatic recurring-transaction detection
-- Broader integration-test coverage and CI
-- Production CORS hardening and operational monitoring
+- Expansion support for accepted `biweekly` and `quarterly` recurrence patterns beyond the initial expected date
+- Dedicated integration coverage for conditional recurring-rule creation and future-date validation
+- Wiring shared exception handlers, retry helpers, and transactional helpers consistently into routes and migrations
+- Broader endpoint-level OpenAPI response and error examples
+- CI, production CORS hardening, and operational monitoring
 
 See [TODO.md](TODO.md) for the prioritized implementation queue and [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for the operational runbook.
 
@@ -173,7 +174,7 @@ backend/venv/bin/python -m pytest -q backend/tests
 backend/venv/bin/python -m compileall -q backend/app backend/tests
 ```
 
-Tests currently cover balance application/reversal and monthly recurring-date expansion. The integration-test suite is still being built; see [TODO.md](TODO.md).
+The current suite contains 82 automated tests covering business logic, authentication, user isolation, CRUD and balance behavior, forecast and budget behavior, caching and invalidation, and Supabase JWT verification. See [TODO.md](TODO.md).
 
 The P0 implementation sequence and acceptance criteria are documented in [docs/P0_PLAN.md](docs/P0_PLAN.md).
 
@@ -271,7 +272,7 @@ curl -X POST http://127.0.0.1:8000/api/transactions/ \
 | GET | `/api/recurring/upcoming` | Yes | Expand upcoming occurrences |
 | DELETE | `/api/recurring/{rule_id}` | Yes | Delete a recurring rule |
 
-A recurring rule accepts `pattern`, `frequency`, `expected_amount`, `expected_date`, and an optional `transaction_id`. Current expansion supports `daily`, `weekly`, `monthly`, and `yearly` patterns. Automatic creation of a rule from `is_recurring` is planned and is not yet complete.
+A recurring rule accepts `pattern`, `frequency`, `expected_amount`, `expected_date`, and an optional `transaction_id`. `TransactionCreate` also accepts `recurring_pattern`, `recurring_frequency`, and `recurring_expected_date`; a rule is created automatically only when `is_recurring` and all three fields are supplied. Current occurrence expansion supports `daily`, `weekly`, `monthly`, and `yearly` patterns; accepted `biweekly` and `quarterly` patterns are not yet expanded beyond the initial expected date.
 
 ### Forecasting and budgets
 
@@ -283,7 +284,7 @@ A recurring rule accepts `pattern`, `frequency`, `expected_amount`, `expected_da
 | GET | `/api/budget/recommendations` | Yes | Return category budget recommendations |
 | GET | `/api/budget/category-analysis` | Yes | Return spending totals by category |
 
-Forecast and budget results are cached in the `predictions` table. Current cache lifetimes are 24 hours for cash flow and anomalies, 12 hours for runway, and 7 days for budget outputs. Transaction and account mutations invalidate derived predictions.
+Forecast and budget results are cached in the `predictions` table. Current cache lifetimes are 24 hours for cash flow and anomalies, 12 hours for runway, and 7 days for both `budget` and `budget_analysis` outputs. Cache writes are request-driven. Transaction and account mutations invalidate derived predictions.
 
 ### Categorization
 
@@ -348,7 +349,7 @@ The client should keep authentication state separate from cached financial data,
 
 A server-to-server integration should:
 
-1. Register or provision a user through the auth contract.
+1. Provision a user through Supabase Auth or the Supabase admin API; this repository no longer exposes backend registration or login endpoints.
 2. Store the returned JWT only in a server-side secret store.
 3. Call the API over HTTPS.
 4. Map the external system's account IDs to the API's account IDs.
@@ -390,7 +391,7 @@ curl https://expense-tracker-uwrp.onrender.com/health
 curl https://expense-tracker-uwrp.onrender.com/openapi.json
 ```
 
-Then exercise registration, login, account creation, transaction creation, forecast retrieval, and a cross-user access test. Configure uptime monitoring, centralized logs, error tracking, database backups, and TLS before real users depend on the service.
+Then exercise a Supabase-issued-token request, account creation, transaction creation, forecast retrieval, and a cross-user access test. Configure uptime monitoring, centralized logs, error tracking, database backups, and TLS before real users depend on the service.
 
 For the full operational checklist, see [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md).
 
@@ -401,7 +402,7 @@ For the full operational checklist, see [docs/INFRASTRUCTURE.md](docs/INFRASTRUC
 - Keep `.env`, database URLs, JWTs, and model-training data out of source control and logs.
 - Restrict database network access to the API and administrative paths.
 - Enable PostgreSQL backups and test restoration.
-- Add rate limiting to registration, login, and ML training before public launch.
+- Add broader production rate limiting and monitoring before public launch. Only ML training (`POST /api/categorize/train`) currently has an application-level limit.
 - Configure CORS per environment.
 - Run dependency and vulnerability scans in CI.
 - Keep migrations reversible where practical and back up before destructive changes.
@@ -411,9 +412,10 @@ For the full operational checklist, see [docs/INFRASTRUCTURE.md](docs/INFRASTRUC
 ## Current limitations
 
 - The repository is API-only; no frontend is currently part of this project.
-- Integration tests for the complete endpoint surface are still pending.
+- The automated suite has 82 tests, but dedicated integration coverage is still missing for conditional `is_recurring` rule creation and future-date validation.
 - Supabase Auth is required in production; local HS256 tokens are test-only.
-- The documented automatic `is_recurring` to recurring-rule workflow is not complete.
+- A transaction creates a recurring rule only when `is_recurring`, `recurring_pattern`, `recurring_frequency`, and `recurring_expected_date` are all supplied.
+- Accepted `biweekly` and `quarterly` recurrence patterns are not yet expanded beyond the initial expected date.
 - Changing a transaction's type or account is not yet supported as a balance-preserving operation; amount changes are handled.
 - Forecasting uses LightGBM regressors with rolling, lag, velocity, and seasonality features.
 - Prediction generation is request-driven; scheduled jobs are not yet implemented.
@@ -430,13 +432,15 @@ Expense_Tracker/
 │   ├── .env.example                     Configuration template
 │   ├── alembic.ini                      Migration configuration
 │   ├── alembic/versions/                Database migrations
-│   ├── app/db/database.py               Async engine and database sessions
-│   ├── app/models/                      SQLAlchemy models
-│   ├── app/schemas/                     Pydantic request/response schemas
-│   ├── app/routes/                      Auth, CRUD, forecast, budget, ML routes
-│   ├── app/services/                    Categorization, cache, and seeding logic
-│   ├── app/ml/                          Categorizer and saved model artifacts
-│   └── tests/                           Unit/regression tests
+  │   ├── app/db/database.py               Async engine and database sessions
+  │   ├── app/factory.py                   Application factory shared by `main.py`
+  │   ├── app/models/                      SQLAlchemy models
+  │   ├── app/schemas/                     Pydantic request/response schemas
+  │   ├── app/routes/                      Auth, CRUD, forecast, budget, ML routes
+  │   ├── app/services/                    Categorization, cache, and seeding logic
+  │   ├── app/ml/                          Categorization, forecasting, and saved model artifacts
+  │   ├── app/utils/                       Supabase auth, error handling, rate limiting, and test helpers
+  │   └── tests/                           Unit and integration tests
 ├── docs/INFRASTRUCTURE.md               Hosting and operations runbook
 ├── TODO.md                              Prioritized implementation checklist
 └── AGENTS.md                            Project scope and coding guidance

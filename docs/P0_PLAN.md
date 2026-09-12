@@ -112,17 +112,11 @@ Recurring rules:
 From the repository root:
 
 ```sh
-.venv/bin/python -m pytest -q backend/tests
-.venv/bin/python -m compileall -q backend/app backend/tests
+backend/venv/bin/python -m pytest -q backend/tests
+backend/venv/bin/python -m compileall -q backend/app backend/tests
 ```
 
-The P0 gate must also pass against a clean temporary test database, with no Uvicorn process required:
-
-```sh
-.venv/bin/python -m pytest -q backend/tests -m integration
-```
-
-If the project does not add a pytest marker, use the full test command and keep the integration tests included in the default suite.
+The P0 gate must also pass against a clean temporary test database, with no Uvicorn process required. The project does not use a separate `integration` pytest marker; the integration tests are included in the default suite.
 
 ## Definition of done
 
