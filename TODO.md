@@ -3,6 +3,7 @@
 Status: API foundation, Supabase Auth migration, P0, and P2 are complete; P1 is partially complete; P3 is planned. The backend is deployed, but mobile integration is still the next client-side phase.
 
 Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs/P0_PLAN.md).
+Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 
 ## Project change policy
 
@@ -69,6 +70,9 @@ Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs
 	examples, and pointed root `MIGRATION.md` to `docs/MIGRATION.md`. Verified
 	`backend/venv/bin/python -m pytest -q backend/tests`
 	(82 passed) and `backend/venv/bin/python -m compileall -q backend/app backend/tests`.
+- **2026-09-12**: Added five DS/DE case studies under `docs/case-studies/`,
+	including a reading guide, and linked them from `README.md`. No application
+	code was changed in this documentation pass.
 
 ## P0 - Make the current API trustworthy
 

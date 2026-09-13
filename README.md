@@ -8,6 +8,7 @@ This repository currently contains the **FastAPI backend only**. Mobile and desk
 
 - [Architecture](#architecture)
 - [Capabilities](#capabilities)
+- [Case studies](#case-studies)
 - [Requirements](#requirements)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
@@ -74,6 +75,16 @@ The API uses asynchronous SQLAlchemy sessions. The runtime database is Supabase 
 - CI, production CORS hardening, and operational monitoring
 
 See [TODO.md](TODO.md) for the prioritized implementation queue and [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for the operational runbook.
+
+## Case studies
+
+Five role-focused writeups are available in [docs/case-studies/](docs/case-studies/):
+
+- [Trustworthy finance API](docs/case-studies/01-trustworthy-finance-api.md)
+- [Supabase Auth migration](docs/case-studies/02-supabase-auth-migration.md)
+- [ML transaction categorization](docs/case-studies/03-ml-transaction-categorization.md)
+- [ML cash-flow forecasting](docs/case-studies/04-ml-cash-flow-forecasting.md)
+- [Production analytics platform](docs/case-studies/05-production-analytics-platform.md)
 
 ## Requirements
 
@@ -442,6 +453,7 @@ Expense_Tracker/
   │   ├── app/utils/                       Supabase auth, error handling, rate limiting, and test helpers
   │   └── tests/                           Unit and integration tests
 ├── docs/INFRASTRUCTURE.md               Hosting and operations runbook
+├── docs/case-studies/                 DS/DE case studies and reading guide
 ├── TODO.md                              Prioritized implementation checklist
 └── AGENTS.md                            Project scope and coding guidance
 ```

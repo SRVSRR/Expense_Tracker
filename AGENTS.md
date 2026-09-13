@@ -266,6 +266,7 @@ future phases.
 | 2026-09-07 | P1 Progress | Added `RecurringPattern` enum (daily/weekly/biweekly/monthly/quarterly/yearly) and Pydantic validation to `TransactionCreate` and `RecurringRuleBase`. Transaction creation auto-creates `RecurringRule` when `is_recurring=1` with required fields. Added `RecurringRule` schema with `auth_user_id`. All 82 tests pass. |
 | 2026-09-07 | Error Handling & App Factory | Added `app/utils/exceptions.py` with custom exceptions (ValidationError, NotFoundError, ConflictError, DatabaseError, MigrationError, ExternalServiceError) and SQLAlchemy error handlers. Created `app/factory.py` with `create_app()` factory function; `main.py` now uses factory. Added `with_retry` decorator for DB operations and `with_db_transaction` context manager. Helpers are not yet used consistently across routes/migrations, and no circuit breaker exists. All 82 tests pass. |
 | 2026-09-10 | Documentation consistency | Repaired forecast route-example syntax, added missing `Transaction`, `CashflowForecastDay`, and `AnomalyItem` OpenAPI schema examples, removed the stale duplicate P1–P3 checklist, corrected P1/P2/P3 checklist states, reconciled `budget_analysis` cache documentation, and pointed root `MIGRATION.md` to `docs/MIGRATION.md`. Verified `backend/venv/bin/python -m pytest -q backend/tests` (82 passed) and `backend/venv/bin/python -m compileall -q backend/app backend/tests`. |
+| 2026-09-12 | DS/DE case studies | Added five role-focused case studies and a reading guide under `docs/case-studies/`, and linked them from `README.md`. File-reference checks only; no application-code changes. |
 
 ## What to do next (priority order)
 
@@ -323,4 +324,5 @@ future phases.
         supabase_auth.py          Supabase JWKS verification
     /migrations                   Alembic migration config + versions
     /alembic.ini                  Alembic configuration
+  /docs/case-studies              DS/DE case studies and reading guide
   /AGENTS.md
