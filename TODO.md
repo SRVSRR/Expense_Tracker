@@ -1,6 +1,6 @@
 # Expense Tracker Delivery Checklist
 
-Status: API foundation, Supabase Auth migration, P0, and P2 are complete; P1 is partially complete; P3 is planned. The backend is deployed, but mobile integration is still the next client-side phase.
+Status: API foundation, Supabase Auth migration, P0, P1, and P2 are complete; P3 is in progress. The backend is deployed, but mobile integration is still the next client-side phase.
 
 Detailed implementation sequence and acceptance criteria: [docs/P0_PLAN.md](docs/P0_PLAN.md).
 Role-focused case studies: [docs/case-studies/](docs/case-studies/).
@@ -73,6 +73,17 @@ Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 - **2026-09-12**: Added five DS/DE case studies under `docs/case-studies/`,
 	including a reading guide, and linked them from `README.md`. No application
 	code was changed in this documentation pass.
+- **2026-09-16**: P1 completed. Recurring rules reject past `expected_date`
+	(422) and expand `biweekly`/`quarterly` occurrences; route-level failures
+	use the shared `{code, message, details}` envelope with `with_retry` on
+	analytics reads; the app factory now owns routers, CORS, logging
+	middleware, `/`, `/health`, and a lifespan that runs migrations; all routes
+	document OpenAPI error examples via the shared `app/utils/openapi.py`
+	module. Verified `backend/venv/bin/python -m pytest -q backend/tests`
+	(87 passed) and `backend/venv/bin/python -m compileall -q backend/app backend/tests`.
+	A startup failure now fails loudly with a logged error if Alembic
+	migrations fail. Circuit breaker and `with_db_transaction` in route
+	business logic remain explicit debt.
 
 ## P0 - Make the current API trustworthy
 
@@ -112,11 +123,11 @@ Phased migration documented in [docs/MIGRATION.md](docs/MIGRATION.md). Scope: ba
 ## P1 - Finish documented functionality
 
 - [x] Define the recurring transaction request contract and automatically create a recurring rule when a transaction is marked recurring. Implemented conditionally: `TransactionCreate` carries the recurring fields, and `create_transaction` creates a `RecurringRule` only when `is_recurring` plus pattern, frequency, and expected date are supplied.
-- [x] Validate recurring patterns and positive frequencies with Pydantic constraints. Implemented: `RecurringPattern` enum, `frequency >= 1`, and `expected_amount > 0`. A future-date check for `expected_date` is still missing.
-- [ ] Add explicit error handling and rollback behavior around migration and database failures. Exception handlers, `with_retry`, and `with_db_transaction` exist, but routes and migrations do not consistently use them; no circuit breaker is implemented.
+- [x] Validate recurring patterns and positive frequencies with Pydantic constraints. Implemented: `RecurringPattern` enum, `frequency >= 1`, and `expected_amount > 0`. Future-date validation for `expected_date` is now applied (past dates return 422), and `biweekly`/`quarterly` occurrence expansion is supported in `/api/recurring/upcoming`.
+- [x] Add explicit error handling and rollback behavior around migration and database failures. Route-level 404s use the shared `{code, message, details}` exception envelope; `with_retry` protects read-heavy analytics computations against transient DB errors; startup logs and re-raises a clear error when Alembic migrations fail. `with_db_transaction` is not yet used in route business logic and no circuit breaker exists (both documented as explicit debt).
 - [x] Reconcile the cache documentation with the implemented `budget_analysis` cache type. The application cache module documents and implements both 7-day budget cache types; `README.md` and `docs/INFRASTRUCTURE.md` are also updated in this pass.
-- [ ] Make the app factory and `main.py` use the same router and lifespan configuration. `backend/app/factory.py` exists, but it omits routes, CORS, logging middleware, `/`, and `/health`, while `backend/main.py` duplicates lifespan and router configuration.
-- [ ] Add OpenAPI examples and response schemas for forecast, budget, recurring, and categorization endpoints. Most schemas have examples; forecast has route-level success/error examples, while the other routers generally expose only short descriptions and `401` responses.
+- [x] Make the app factory and `main.py` use the same router and lifespan configuration. `backend/app/factory.py` now creates the full app (routers, CORS, request-logging middleware, `/`, `/health`, exception handlers, and the migration-running lifespan), and `main.py` is a thin entrypoint that only calls `create_app()`.
+- [x] Add OpenAPI examples and response schemas for forecast, budget, recurring, and categorization endpoints. All routes document success and standard error responses (400/401/404/422/429/500) with examples via the shared `backend/app/utils/openapi.py` module; response schemas carry `json_schema_extra` examples.
 
 ## P2 - ML upgrade
 

@@ -54,7 +54,7 @@ correctness over frontend UI concerns.
 - Registration was verified on 2026-09-06 with a live `201 Created` response;
   user responses must continue to exclude password fields and password hashes.
 
-## Current status (as of 2026-09-10)
+## Current status (as of 2026-09-16)
 
 **Phases 1–6: COMPLETE (with API + caching + P0 test coverage)**
 
@@ -88,6 +88,13 @@ Completed:
 **P0 Complete**: All integration tests for auth/user isolation, CRUD + balance effects, forecast/budget/cache invalidation, category parent ownership validation, and transaction edit policy (`type`/`account_id` immutable) are passing.
 
 **Auth Migration**: Phases 1-4 complete. `get_current_user` uses Supabase RS256/JWKS verification in production and local HS256 only for tests; local auth routes and the local `users` table are removed. All 82 tests pass.
+
+**P1 (Finish documented functionality): COMPLETE**
+- Recurring rules reject past `expected_date` (422) via Pydantic future-date validation; `biweekly` and `quarterly` occurrence expansion are supported in `/api/recurring/upcoming`
+- Route-level failures use the shared `{code, message, details}` exception envelope (`NotFoundError` etc.); `with_retry` protects read-heavy analytics computations against transient DB errors; startup logs and re-raises a clear error if Alembic migrations fail
+- The app factory (`app/factory.py`) owns routers, CORS, request-logging middleware, `/`, `/health`, and the lifespan that runs migrations; `main.py` is a thin entrypoint
+- All routes document standard error responses with examples via the shared `app/utils/openapi.py` module
+- All 87 tests pass. Remaining explicit debt: `with_db_transaction` not yet used in route business logic, and no circuit breaker is implemented.
 
 **Deployment and mobile handoff**: The FastAPI backend is deployed on Render with
 Supabase Auth as the production provider. Render uses `/health` as the health-check
@@ -267,12 +274,17 @@ future phases.
 | 2026-09-07 | Error Handling & App Factory | Added `app/utils/exceptions.py` with custom exceptions (ValidationError, NotFoundError, ConflictError, DatabaseError, MigrationError, ExternalServiceError) and SQLAlchemy error handlers. Created `app/factory.py` with `create_app()` factory function; `main.py` now uses factory. Added `with_retry` decorator for DB operations and `with_db_transaction` context manager. Helpers are not yet used consistently across routes/migrations, and no circuit breaker exists. All 82 tests pass. |
 | 2026-09-10 | Documentation consistency | Repaired forecast route-example syntax, added missing `Transaction`, `CashflowForecastDay`, and `AnomalyItem` OpenAPI schema examples, removed the stale duplicate P1–P3 checklist, corrected P1/P2/P3 checklist states, reconciled `budget_analysis` cache documentation, and pointed root `MIGRATION.md` to `docs/MIGRATION.md`. Verified `backend/venv/bin/python -m pytest -q backend/tests` (82 passed) and `backend/venv/bin/python -m compileall -q backend/app backend/tests`. |
 | 2026-09-12 | DS/DE case studies | Added five role-focused case studies and a reading guide under `docs/case-studies/`, and linked them from `README.md`. File-reference checks only; no application-code changes. |
+| 2026-09-16 | P1 recurring validation + expansion (`f13057e`) | Pydantic future-date validation rejects past `expected_date` (422) for recurring rules and recurring transaction creation; `biweekly`/`quarterly` occurrence expansion in `/api/recurring/upcoming`. Added 4 tests. 86 tests pass. |
+| 2026-09-16 | P1 error handling + retry (`32a87c4`) | Routes raise shared `NotFoundError` (envelope `{code, message, details}`) instead of bare 404; `with_retry` applied to anomalies/recommendations/category-analysis computations. Added envelope test. 87 tests pass. |
+| 2026-09-16 | P1 app factory alignment (`5381f22`) | Rewrote `app/factory.py` to own routers, CORS, logging middleware, `/`, `/health`, exception handlers, and a lifespan that runs migrations (previously lifespan was never wired, so migrations did not run at startup). `main.py` is a thin entrypoint. 87 tests pass. |
+| 2026-09-16 | P1 OpenAPI route examples (`38834b7`) | Added shared `app/utils/openapi.py` error blocks (400/401/404/422/429/500) and `responses=`/summaries/descriptions on all accounts, transactions, categories, recurring, budget, categorize, and auth route decorators; forecast refactored to the shared module. 87 tests pass. |
+| 2026-09-16 | P1 docs sync | Marked P1 complete in `TODO.md`, `AGENTS.md`, and `docs/phases/P1_PHASE.md`; reconciled factory/lifespan description in `docs/INFRASTRUCTURE.md`; corrected P3 phase status. Merely a documentation pass; no application-code changes. |
 
 ## What to do next (priority order)
 
-1. **P1: Finish documented functionality** — Future-date validation, `biweekly`/`quarterly` expansion, consistent error-handler/retry use, app-factory/router alignment, route-level OpenAPI examples
-2. **P3: Production hardening** — Rate limiting, CI, monitoring, and production secret/CORS review
-3. **Mobile integration** — Configure the mobile repository with the final Render API URL and Supabase project settings
+1. **P3: Production hardening** — Rate limiting, CI, monitoring, and production secret/CORS review
+2. **Mobile integration** — Configure the mobile repository with the final Render API URL and Supabase project settings
+3. **Documented technical debt** — Wire `with_db_transaction` into route business logic (startup/transaction rollbacks) and implement a circuit breaker for external service calls
 
 ## Conventions the agent must follow throughout
 
@@ -288,10 +300,11 @@ future phases.
 ```
 /Expense_Tracker
   /backend                        FastAPI API app
-    main.py                       App entrypoint (CORS, lifespan, routers)
+    main.py                       Thin entrypoint: load_dotenv + create_app()
     requirements.txt              Python deps (aiosqlite, fastapi, lightgbm, etc.)
     .env                          DATABASE_URL, SECRET_KEY
     /app
+      factory.py                App factory: routers, CORS, middleware, /health, lifespan(migrations)
       /db
         database.py               Async engine, session factory, init_db()
       /models
@@ -322,6 +335,7 @@ future phases.
         exceptions.py             Application and database error handlers
         rate_limit.py             Rate-limit configuration
         supabase_auth.py          Supabase JWKS verification
+        openapi.py                Shared OpenAPI error response blocks
     /migrations                   Alembic migration config + versions
     /alembic.ini                  Alembic configuration
   /docs/case-studies              DS/DE case studies and reading guide

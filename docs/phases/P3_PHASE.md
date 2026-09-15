@@ -3,7 +3,9 @@
 ## Overview
 Hardening the API for production deployment. Focus on reliability, observability, security, and deployment readiness.
 
-## Status: Not Started
+## Status: In Progress (partial)
+
+Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, and `slowapi` limits ML training. Remaining P3 work (production SECRET_KEY/CORS env config, broader rate limits, CI, monitoring, backups) is unscoped.
 
 ---
 

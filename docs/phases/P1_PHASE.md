@@ -23,7 +23,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ## Tasks
 
 ### 1. Recurring Transaction Contract & Auto-Creation
-**Status**: Partially complete — schema and conditional creation are implemented, but dedicated integration coverage for the transaction-to-rule link is missing.
+**Status**: Complete — schema, conditional auto-creation, and integration coverage for the transaction-to-rule link are implemented.
 **Priority**: High
 
 **Requirements:**
@@ -46,7 +46,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ---
 
 ### 2. Pydantic Constraints for Recurring Patterns
-**Status**: Partially complete — enum, `frequency >= 1`, and positive-amount validation are implemented; future-date validation and unsupported `biweekly`/`quarterly` occurrence expansion remain.
+**Status**: Complete — enum, `frequency >= 1`, positive-amount validation, future-date validation, and `biweekly`/`quarterly` occurrence expansion are all implemented.
 **Priority**: High
 
 **Requirements:**
@@ -67,7 +67,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ---
 
 ### 3. Error Handling & Rollback for Migrations/DB Failures
-**Status**: Partially complete — shared exceptions, SQLAlchemy handlers, retry and transaction helpers exist but are not consistently wired into routes or migrations; no circuit breaker is implemented.
+**Status**: Mostly complete — shared exceptions are wired into routes as the `{code, message, details}` envelope, `with_retry` guards read-heavy analytics computations, and migration failures log and re-raise at startup. Remaining documented debt: `with_db_transaction` is not yet used in route business logic, and no circuit breaker is implemented (the "Supabase outage returns 503" acceptance criterion is deferred).
 **Priority**: Medium
 
 **Requirements:**
@@ -117,7 +117,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ---
 
 ### 5. App Factory / main.py Alignment
-**Status**: Partially complete — `backend/app/factory.py` exists, but it omits routers, CORS, logging middleware, `/`, and `/health`; `backend/main.py` still duplicates lifespan and router configuration.
+**Status**: Complete — `backend/app/factory.py` owns routers, CORS, request-logging middleware, `/`, `/health`, exception handlers, and the migration-running lifespan; `backend/main.py` is a thin entrypoint.
 **Priority**: Medium
 
 **Requirements:**
@@ -139,7 +139,7 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 ---
 
 ### 6. OpenAPI Examples for All Endpoints
-**Status**: Partially complete — most response schemas and all three forecast routes have examples; budget, recurring, categorize, account, transaction, category, and auth routes generally expose summaries without per-status examples.
+**Status**: Complete — all routes document success and standard error responses (400/401/404/422/429/500) via the shared `app/utils/openapi.py` module, and response schemas carry `json_schema_extra` examples.
 **Priority**: Medium
 
 **Requirements:**
@@ -183,8 +183,8 @@ Complete the documented but not-yet-implemented functionality in the API. This p
 | **Total** | **9-12 days** |
 
 ## Definition of Done
-- [ ] All P1 tasks complete
-- [ ] All P1 tests pass
-- [ ] Documentation updated
-- [ ] OpenAPI examples visible in `/docs`
-- [ ] TODO.md updated with checkmarks
+- [x] All P1 tasks complete (circuit breaker deferred as explicit debt)
+- [x] All P1 tests pass (87 passed via `backend/venv/bin/python -m pytest -q backend/tests`)
+- [x] Documentation updated
+- [x] OpenAPI examples visible in `/docs`
+- [x] TODO.md updated with checkmarks

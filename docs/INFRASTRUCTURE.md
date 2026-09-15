@@ -69,8 +69,6 @@ Clients call the deployed base URL with the `/api` prefix, for example:
 
 Obtain the access token from Supabase Auth, then send `Authorization: Bearer <access_token>` on every protected request. Store the token using the platform's secure storage. On HTTP 401, clear the token and return the user to the Supabase Auth login flow.
 
-## Release checklist
-
 ## Prediction cache
 
 Prediction results are cached by user in the `predictions` table:
