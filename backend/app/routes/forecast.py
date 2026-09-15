@@ -8,6 +8,7 @@ from app.db.database import get_db
 from app.models import Transaction, Account
 from app.utils import get_current_user, with_retry
 from app.services.prediction_cache import get_cached_prediction, store_prediction
+from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_500
 from app.ml.forecasting import get_forecast_manager
 from app.schemas import (
     CashflowForecast,
@@ -113,76 +114,6 @@ ANOMALIES_200_EXAMPLE = {
             "deviation_ratio": 20.83
         }
     ]
-}
-
-ERROR_401 = {
-    "description": "Unauthorized - Missing or invalid JWT token",
-    "content": {
-        "application/json": {
-            "example": {
-                "error": {
-                    "code": "UNAUTHORIZED",
-                    "message": "Could not validate credentials",
-                    "details": {}
-                }
-            }
-        }
-    }
-}
-
-ERROR_404 = {
-    "description": "Not Found - Resource doesn't exist or access denied",
-    "content": {
-        "application/json": {
-            "example": {
-                "error": {
-                    "code": "NOT_FOUND",
-                    "message": "Resource not found",
-                    "details": {}
-                }
-            }
-        }
-    }
-}
-
-ERROR_422 = {
-    "description": "Validation Error",
-    "content": {
-        "application/json": {
-            "example": {
-                "detail": [
-                    {
-                        "loc": ["query", "days"],
-                        "msg": "ensure this value is greater than or equal to 7",
-                        "type": "value_error.number.not_ge",
-                        "input": 5
-                    }
-                ]
-            }
-        }
-    }
-}
-
-ERROR_500 = {
-    "description": "Internal Server Error",
-    "content": {
-        "application/json": {
-            "example": {
-                "error": {
-                    "code": "INTERNAL_ERROR",
-                    "message": "An unexpected error occurred",
-                    "details": {}
-                }
-            }
-        }
-    }
-}
-
-COMMON_ERRORS = {
-    401: ERROR_401,
-    404: ERROR_404,
-    422: ERROR_422,
-    500: ERROR_500,
 }
 
 

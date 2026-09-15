@@ -8,6 +8,7 @@ from app.db.database import get_db
 from app.models import Transaction, Account
 from app.utils import get_current_user, with_retry
 from app.services.prediction_cache import get_cached_prediction, store_prediction
+from app.utils.openapi import ERROR_401, ERROR_500
 from app.schemas import BudgetRecommendations, CategoryAnalysis
 
 router = APIRouter()
@@ -133,7 +134,8 @@ async def _compute_category_analysis(db: AsyncSession, user_id: str) -> dict:
     description="Returns rule-based budget caps per category based on historical averages and income percentage. Cached for 7 days.",
     responses={
         200: {"description": "Successful response with budget recommendations"},
-        401: {"description": "Unauthorized - invalid or missing token"},
+        401: ERROR_401,
+        500: ERROR_500,
     },
 )
 async def get_budget_recommendations(
@@ -157,7 +159,8 @@ async def get_budget_recommendations(
     description="Returns full spending breakdown by category for the last 3 months. Cached for 7 days.",
     responses={
         200: {"description": "Successful response with category analysis"},
-        401: {"description": "Unauthorized - invalid or missing token"},
+        401: ERROR_401,
+        500: ERROR_500,
     },
 )
 async def analyze_category_spending(

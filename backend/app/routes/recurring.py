@@ -14,6 +14,7 @@ from app.schemas import (
 )
 from app.utils import generate_uuid, get_current_user
 from app.utils.exceptions import NotFoundError
+from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_500
 from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
@@ -27,8 +28,10 @@ router = APIRouter()
     description="Creates a recurring rule linked to a transaction. The transaction must belong to the current user.",
     responses={
         201: {"description": "Recurring rule created successfully"},
-        401: {"description": "Unauthorized - invalid or missing token"},
-        404: {"description": "Transaction not found or not owned by user"},
+        401: ERROR_401,
+        404: ERROR_404,
+        422: ERROR_422,
+        500: ERROR_500,
     },
 )
 async def create_recurring_rule(
@@ -69,7 +72,8 @@ async def create_recurring_rule(
     description="Returns all recurring rules for the current user, ordered by expected date.",
     responses={
         200: {"description": "List of recurring rules"},
-        401: {"description": "Unauthorized - invalid or missing token"},
+        401: ERROR_401,
+        500: ERROR_500,
     },
 )
 async def list_recurring_rules(
@@ -91,7 +95,9 @@ async def list_recurring_rules(
     description="Returns expanded upcoming occurrences for all recurring rules within the specified day range.",
     responses={
         200: {"description": "List of upcoming transaction occurrences"},
-        401: {"description": "Unauthorized - invalid or missing token"},
+        401: ERROR_401,
+        422: ERROR_422,
+        500: ERROR_500,
     },
 )
 async def get_upcoming_transactions(
@@ -179,7 +185,17 @@ def _days_in_month(year: int, month: int) -> int:
     return calendar.monthrange(year, month)[1]
 
 
-@router.delete("/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{rule_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete recurring rule",
+    responses={
+        204: {"description": "Recurring rule deleted successfully"},
+        401: ERROR_401,
+        404: ERROR_404,
+        500: ERROR_500,
+    },
+)
 async def delete_recurring_rule(
     rule_id: str,
     db: AsyncSession = Depends(get_db),

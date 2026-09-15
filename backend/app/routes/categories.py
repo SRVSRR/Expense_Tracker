@@ -8,11 +8,24 @@ from app.models import Category
 from app.schemas import CategoryCreate, Category as CategorySchema
 from app.utils import generate_uuid, get_current_user
 from app.utils.exceptions import NotFoundError
+from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_500
 
 router = APIRouter()
 
 
-@router.post("/", response_model=CategorySchema, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=CategorySchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create category",
+    responses={
+        201: {"description": "Category created successfully"},
+        401: ERROR_401,
+        404: ERROR_404,
+        422: ERROR_422,
+        500: ERROR_500,
+    },
+)
 async def create_category(
     cat_data: CategoryCreate,
     db: AsyncSession = Depends(get_db),
@@ -42,7 +55,16 @@ async def create_category(
     return category
 
 
-@router.get("/", response_model=list[CategorySchema])
+@router.get(
+    "/",
+    response_model=list[CategorySchema],
+    summary="List categories",
+    responses={
+        200: {"description": "List of categories"},
+        401: ERROR_401,
+        500: ERROR_500,
+    },
+)
 async def list_categories(
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
@@ -53,7 +75,17 @@ async def list_categories(
     return result.scalars().all()
 
 
-@router.get("/{category_id}", response_model=CategorySchema)
+@router.get(
+    "/{category_id}",
+    response_model=CategorySchema,
+    summary="Get category",
+    responses={
+        200: {"description": "Category details"},
+        401: ERROR_401,
+        404: ERROR_404,
+        500: ERROR_500,
+    },
+)
 async def get_category(
     category_id: str,
     db: AsyncSession = Depends(get_db),
@@ -70,7 +102,18 @@ async def get_category(
     return category
 
 
-@router.put("/{category_id}", response_model=CategorySchema)
+@router.put(
+    "/{category_id}",
+    response_model=CategorySchema,
+    summary="Update category",
+    responses={
+        200: {"description": "Category updated successfully"},
+        401: ERROR_401,
+        404: ERROR_404,
+        422: ERROR_422,
+        500: ERROR_500,
+    },
+)
 async def update_category(
     category_id: str,
     cat_data: CategoryCreate,
@@ -104,7 +147,17 @@ async def update_category(
     return category
 
 
-@router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{category_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete category",
+    responses={
+        204: {"description": "Category deleted successfully"},
+        401: ERROR_401,
+        404: ERROR_404,
+        500: ERROR_500,
+    },
+)
 async def delete_category(
     category_id: str,
     db: AsyncSession = Depends(get_db),

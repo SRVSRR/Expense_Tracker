@@ -9,6 +9,7 @@ from app.models import CorrectionLog
 from app.services.categorize import get_all_categories
 from app.ml.categorizer import get_categorizer
 from app.utils import generate_uuid, get_current_user
+from app.utils.openapi import ERROR_401, ERROR_422, ERROR_429, ERROR_500
 from app.schemas import (
     CategorizeSuggestRequest,
     CategorizeSuggestResponse,
@@ -28,7 +29,9 @@ router = APIRouter()
     description="Returns a suggested category for a transaction description using ML model with rule-based fallback. Confidence levels: high (>0.8), medium (0.55-0.8), low (<0.55), none (no match).",
     responses={
         200: {"description": "Category suggestion with confidence"},
-        401: {"description": "Unauthorized - invalid or missing token"},
+        401: ERROR_401,
+        422: ERROR_422,
+        500: ERROR_500,
     },
 )
 async def categorize_suggest(
@@ -57,7 +60,9 @@ async def categorize_suggest(
     description="Logs when a user overrides a suggested category. Used for future ML model training. Data from all users improves the shared model.",
     responses={
         200: {"description": "Correction logged successfully"},
-        401: {"description": "Unauthorized - invalid or missing token"},
+        401: ERROR_401,
+        422: ERROR_422,
+        500: ERROR_500,
     },
 )
 async def log_correction(
@@ -86,8 +91,9 @@ async def log_correction(
     description="Trains the LightGBM categorization model on all logged corrections from all users. Requires minimum 30 samples. Returns training status, sample count, accuracy, and number of classes.",
     responses={
         200: {"description": "Training result"},
-        401: {"description": "Unauthorized - invalid or missing token"},
-        429: {"description": "Rate limit exceeded"},
+        401: ERROR_401,
+        429: ERROR_429,
+        500: ERROR_500,
     },
 )
 @limiter.limit("2/hour")
@@ -135,7 +141,8 @@ async def train_model(
     description="Returns information about the current ML categorization model including training status, sample count, and whether a model exists on disk.",
     responses={
         200: {"description": "Model information"},
-        401: {"description": "Unauthorized - invalid or missing token"},
+        401: ERROR_401,
+        500: ERROR_500,
     },
 )
 async def model_info(
