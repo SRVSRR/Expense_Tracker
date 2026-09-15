@@ -1,48 +1,55 @@
 """Application factory for creating the FastAPI app."""
-from contextlib import asynccontextmanager
-import os
 import logging
+import os
+from contextlib import asynccontextmanager
+
+from alembic import command
+from alembic.config import Config
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from sqlalchemy import text
+
+from app.db.database import engine
+from app.routes import (
+    auth,
+    accounts,
+    budget,
+    categories,
+    categorize,
+    forecast,
+    recurring,
+    transactions,
+)
+from app.utils.exceptions import register_exception_handlers
+from app.utils.rate_limit import limiter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("expense_tracker")
 
 
 @asynccontextmanager
-async def lifespan(app: "FastAPI"):
-    # Startup: run Alembic migrations instead of create_all
-    print("Starting up — running database migrations...")
+async def lifespan(app: FastAPI):
+    """Startup/shutdown lifecycle: run Alembic migrations and fail loudly on error."""
+    logger.info("Running database migrations...")
     alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
-    command.upgrade(alembic_cfg, "head")
-    print("Migrations complete.")
+    try:
+        command.upgrade(alembic_cfg, "head")
+    except Exception as exc:
+        logger.exception("Database migration failed during startup")
+        raise
+    logger.info("Migrations complete.")
     yield
-    # Shutdown
-    print("Shutting down...")
+    logger.info("Shutting down...")
 
 
-def create_app() -> "FastAPI":
+def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
     from dotenv import load_dotenv
+
     load_dotenv()
-
-    import os
-    import logging
-    from fastapi import FastAPI, Request
-    from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.security import HTTPBearer
-    from contextlib import asynccontextmanager
-    from alembic.config import Config
-    from alembic import command
-    from sqlalchemy import text
-    from slowapi import _rate_limit_exceeded_handler
-    from slowapi.errors import RateLimitExceeded
-    from sqlalchemy.exc import SQLAlchemyError, IntegrityError, OperationalError
-    from slowapi import _rate_limit_exceeded_handler
-    from slowapi.errors import RateLimitExceeded
-
-    from app.routes import transactions, accounts, categories, forecast, budget, auth, recurring, categorize
-    from app.db.database import engine
-    from app.utils.rate_limit import limiter
-    from app.utils.exceptions import register_exception_handlers
 
     security_scheme = HTTPBearer(
         scheme_name="Bearer Token",
@@ -137,13 +144,55 @@ Breaking changes may occur without notice. API stability not guaranteed until v1
             {"name": "categorize", "description": "ML-based transaction categorization: suggest, log corrections, train model"},
         ],
         components={"securitySchemes": {"Bearer Token": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"}}},
+        lifespan=lifespan,
     )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # Configure appropriately for production
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        logger.info(f">>> {request.method} {request.url.path}")
+        response = await call_next(request)
+        logger.info(f"<<< {response.status_code}")
+        return response
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-    # Register custom exception handlers
-    from app.utils.exceptions import register_exception_handlers
     register_exception_handlers(app)
+
+    app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
+    app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
+    app.include_router(transactions.router, prefix="/api/transactions", tags=["transactions"])
+    app.include_router(categories.router, prefix="/api/categories", tags=["categories"])
+    app.include_router(forecast.router, prefix="/api/forecast", tags=["forecast"])
+    app.include_router(budget.router, prefix="/api/budget", tags=["budget"])
+    app.include_router(recurring.router, prefix="/api/recurring", tags=["recurring"])
+    app.include_router(categorize.router, prefix="/api/categorize", tags=["categorize"])
+
+    @app.get("/", include_in_schema=False)
+    async def root():
+        return {
+            "message": "Expense Tracker API",
+            "docs": "/docs",
+            "redoc": "/redoc",
+        }
+
+    @app.get("/health", tags=["health"])
+    async def health_check():
+        """Health check with database connectivity verification."""
+        db_status = "ok"
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(text("SELECT 1"))
+        except Exception as exc:
+            logger.warning("Health check database failure: %s", exc)
+            db_status = f"error: {exc}"
+        return {"status": "ok", "database": db_status}
 
     return app
