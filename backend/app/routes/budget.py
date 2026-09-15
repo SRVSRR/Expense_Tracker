@@ -6,13 +6,14 @@ from datetime import datetime, timedelta
 
 from app.db.database import get_db
 from app.models import Transaction, Account
-from app.utils import get_current_user
+from app.utils import get_current_user, with_retry
 from app.services.prediction_cache import get_cached_prediction, store_prediction
 from app.schemas import BudgetRecommendations, CategoryAnalysis
 
 router = APIRouter()
 
 
+@with_retry(max_retries=3, base_delay=0.5, max_delay=5.0)
 async def _compute_recommendations(db: AsyncSession, user_id: str) -> dict:
     """Compute rule-based budget recommendations."""
     three_months_ago = datetime.utcnow() - timedelta(days=90)
@@ -73,6 +74,7 @@ async def _compute_recommendations(db: AsyncSession, user_id: str) -> dict:
     }
 
 
+@with_retry(max_retries=3, base_delay=0.5, max_delay=5.0)
 async def _compute_category_analysis(db: AsyncSession, user_id: str) -> dict:
     """Compute spending analysis by category."""
     three_months_ago = datetime.utcnow() - timedelta(days=90)

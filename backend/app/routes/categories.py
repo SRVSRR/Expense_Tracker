@@ -1,5 +1,5 @@
 """Category management routes"""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -7,6 +7,7 @@ from app.db.database import get_db
 from app.models import Category
 from app.schemas import CategoryCreate, Category as CategorySchema
 from app.utils import generate_uuid, get_current_user
+from app.utils.exceptions import NotFoundError
 
 router = APIRouter()
 
@@ -24,7 +25,7 @@ async def create_category(
             )
         )
         if not result.scalar_one_or_none():
-            raise HTTPException(status_code=404, detail="Parent category not found")
+            raise NotFoundError(resource="Parent category", identifier=cat_data.parent_id)
 
     category = Category(
         id=generate_uuid(),
@@ -65,7 +66,7 @@ async def get_category(
     )
     category = result.scalar_one_or_none()
     if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise NotFoundError(resource="Category", identifier=category_id)
     return category
 
 
@@ -83,7 +84,7 @@ async def update_category(
     )
     category = result.scalar_one_or_none()
     if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise NotFoundError(resource="Category", identifier=category_id)
 
     update_data = cat_data.model_dump(exclude_unset=True)
     if "parent_id" in update_data and update_data["parent_id"]:
@@ -93,7 +94,7 @@ async def update_category(
             )
         )
         if not result.scalar_one_or_none():
-            raise HTTPException(status_code=404, detail="Parent category not found")
+            raise NotFoundError(resource="Parent category", identifier=update_data["parent_id"])
 
     for field, value in update_data.items():
         setattr(category, field, value)
@@ -116,7 +117,7 @@ async def delete_category(
     )
     category = result.scalar_one_or_none()
     if not category:
-        raise HTTPException(status_code=404, detail="Category not found")
+        raise NotFoundError(resource="Category", identifier=category_id)
 
     await db.delete(category)
     await db.commit()

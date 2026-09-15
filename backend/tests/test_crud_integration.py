@@ -7,6 +7,14 @@ from datetime import datetime, timedelta
 class TestAccountCRUD:
     """Tests for account CRUD operations."""
 
+    async def test_error_response_envelope(self, auth_client: AsyncClient):
+        response = await auth_client.get("/api/accounts/missing-account")
+        assert response.status_code == 404
+        body = response.json()
+        assert body["error"]["code"] == "NOT_FOUND"
+        assert "message" in body["error"]
+        assert isinstance(body["error"]["details"], dict)
+
     async def test_create_account_with_initial_balance(self, auth_client: AsyncClient):
         response = await auth_client.post(
             "/api/accounts",

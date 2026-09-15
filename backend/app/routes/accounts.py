@@ -1,5 +1,5 @@
 """Account management routes"""
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -7,6 +7,7 @@ from app.db.database import get_db
 from app.models import Account
 from app.schemas import AccountCreate, AccountUpdate, Account as AccountSchema
 from app.utils import generate_uuid, get_current_user
+from app.utils.exceptions import NotFoundError
 from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
@@ -57,7 +58,7 @@ async def get_account(
     )
     account = result.scalar_one_or_none()
     if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
+        raise NotFoundError(resource="Account", identifier=account_id)
     return account
 
 
@@ -75,7 +76,7 @@ async def update_account(
     )
     account = result.scalar_one_or_none()
     if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
+        raise NotFoundError(resource="Account", identifier=account_id)
 
     update_data = account_data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -100,7 +101,7 @@ async def delete_account(
     )
     account = result.scalar_one_or_none()
     if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
+        raise NotFoundError(resource="Account", identifier=account_id)
 
     await db.delete(account)
     await db.commit()

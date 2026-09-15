@@ -1,5 +1,5 @@
 """Transaction management routes"""
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
@@ -15,6 +15,7 @@ from app.schemas import (
     RecurringPattern,
 )
 from app.utils import generate_uuid, get_current_user
+from app.utils.exceptions import NotFoundError
 from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
@@ -47,7 +48,7 @@ async def create_transaction(
     )
     account = result.scalar_one_or_none()
     if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
+        raise NotFoundError(resource="Account", identifier=tx_data.account_id)
 
     transaction = Transaction(
         id=generate_uuid(),
@@ -128,7 +129,7 @@ async def get_transaction(
     )
     transaction = result.scalar_one_or_none()
     if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
+        raise NotFoundError(resource="Transaction", identifier=transaction_id)
     return transaction
 
 
@@ -147,7 +148,7 @@ async def update_transaction(
     )
     transaction = result.scalar_one_or_none()
     if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
+        raise NotFoundError(resource="Transaction", identifier=transaction_id)
 
     update_data = tx_data.model_dump(exclude_unset=True)
     if "amount" in update_data:
@@ -159,7 +160,7 @@ async def update_transaction(
         )
         account = account_result.scalar_one_or_none()
         if account is None:
-            raise HTTPException(status_code=404, detail="Account not found")
+            raise NotFoundError(resource="Account", identifier=transaction.account_id)
         balance_delta = update_data["amount"] - transaction.amount
         apply_transaction_balance(account, transaction.type, balance_delta)
     for field, value in update_data.items():
@@ -185,7 +186,7 @@ async def delete_transaction(
     )
     transaction = result.scalar_one_or_none()
     if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
+        raise NotFoundError(resource="Transaction", identifier=transaction_id)
 
     account_result = await db.execute(
         select(Account).where(
@@ -195,7 +196,7 @@ async def delete_transaction(
     )
     account = account_result.scalar_one_or_none()
     if account is None:
-        raise HTTPException(status_code=404, detail="Account not found")
+        raise NotFoundError(resource="Account", identifier=transaction.account_id)
 
     apply_transaction_balance(account, transaction.type, transaction.amount, multiplier=-1)
     await db.delete(transaction)

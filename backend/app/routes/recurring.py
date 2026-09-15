@@ -1,5 +1,5 @@
 """Recurring rules routes"""
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta
@@ -13,6 +13,7 @@ from app.schemas import (
     RecurringUpcomingItem,
 )
 from app.utils import generate_uuid, get_current_user
+from app.utils.exceptions import NotFoundError
 from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
@@ -43,7 +44,7 @@ async def create_recurring_rule(
             )
         )
         if transaction_result.scalar_one_or_none() is None:
-            raise HTTPException(status_code=404, detail="Transaction not found")
+            raise NotFoundError(resource="Transaction", identifier=data.transaction_id)
 
     rule = RecurringRule(
         id=generate_uuid(),
@@ -192,7 +193,7 @@ async def delete_recurring_rule(
     )
     rule = result.scalar_one_or_none()
     if not rule:
-        raise HTTPException(status_code=404, detail="Recurring rule not found")
+        raise NotFoundError(resource="Recurring rule", identifier=rule_id)
 
     await db.delete(rule)
     await db.commit()

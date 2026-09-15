@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 from app.db.database import get_db
 from app.models import Transaction, Account
-from app.utils import get_current_user
+from app.utils import get_current_user, with_retry
 from app.services.prediction_cache import get_cached_prediction, store_prediction
 from app.ml.forecasting import get_forecast_manager
 from app.schemas import (
@@ -316,6 +316,7 @@ async def detect_anomalies(
     return data
 
 
+@with_retry(max_retries=3, base_delay=0.5, max_delay=5.0)
 async def _compute_anomalies(db: AsyncSession, user_id: str) -> dict:
     """Compute naive anomaly detection (2x category average)."""
     result = await db.execute(
