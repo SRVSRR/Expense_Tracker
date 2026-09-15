@@ -1,7 +1,7 @@
 """Pydantic request/response schemas"""
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
 
@@ -17,6 +17,15 @@ class RecurringPattern(str, Enum):
     MONTHLY = "monthly"
     QUARTERLY = "quarterly"
     YEARLY = "yearly"
+
+
+def _require_future_date(value: datetime) -> datetime:
+    """Normalize to naive UTC and require the datetime to be in the future."""
+    if value.tzinfo is not None:
+        value = value.astimezone(timezone.utc).replace(tzinfo=None)
+    if value <= datetime.utcnow():
+        raise ValueError("expected_date must be in the future")
+    return value
 
 
 class CategoryBase(BaseModel):
@@ -136,6 +145,13 @@ class TransactionCreate(TransactionBase):
     recurring_frequency: Optional[int] = Field(default=None, ge=1)
     recurring_expected_date: Optional[datetime] = None
 
+    @field_validator("recurring_expected_date")
+    @classmethod
+    def _validate_recurring_expected_date(cls, v: Optional[datetime]) -> Optional[datetime]:
+        if v is None:
+            return v
+        return _require_future_date(v)
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -229,6 +245,11 @@ class RecurringRuleBase(BaseModel):
     frequency: int = Field(default=1, ge=1)
     expected_amount: float = Field(gt=0)
     expected_date: datetime
+
+    @field_validator("expected_date")
+    @classmethod
+    def _validate_expected_date(cls, v: datetime) -> datetime:
+        return _require_future_date(v)
 
 
 class RecurringRuleCreate(RecurringRuleBase):

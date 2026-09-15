@@ -184,7 +184,7 @@ class TestUserIsolation:
                 "pattern": "monthly",
                 "frequency": 1,
                 "expected_amount": 10.0,
-                "expected_date": "2026-02-01T00:00:00",
+                "expected_date": "2027-01-01T00:00:00",
             },
         )
         assert rr_resp.status_code == 201

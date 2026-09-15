@@ -240,7 +240,7 @@ class TestPredictionCache:
         )
         await auth_client.post(
             "/api/recurring/",
-            json={"transaction_id": tx_resp.json()["id"], "pattern": "monthly", "frequency": 1, "expected_amount": 50.0, "expected_date": "2026-02-01T00:00:00"},
+            json={"transaction_id": tx_resp.json()["id"], "pattern": "monthly", "frequency": 1, "expected_amount": 50.0, "expected_date": "2027-01-01T00:00:00"},
         )
         
         response = await auth_client.get("/api/forecast/cashflow?days=30")
@@ -258,7 +258,7 @@ class TestPredictionCache:
         )
         rr_resp = await auth_client.post(
             "/api/recurring/",
-            json={"transaction_id": tx_resp.json()["id"], "pattern": "monthly", "frequency": 1, "expected_amount": 50.0, "expected_date": "2026-02-01T00:00:00"},
+            json={"transaction_id": tx_resp.json()["id"], "pattern": "monthly", "frequency": 1, "expected_amount": 50.0, "expected_date": "2027-01-01T00:00:00"},
         )
         rule_id = rr_resp.json()["id"]
         

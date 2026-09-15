@@ -147,13 +147,12 @@ def _generate_occurrences(rule, start: datetime, end: datetime) -> List[datetime
             current += timedelta(days=freq)
         elif pattern == "weekly":
             current += timedelta(weeks=freq)
+        elif pattern == "biweekly":
+            current += timedelta(weeks=2 * freq)
         elif pattern == "monthly":
-            # Add months manually to handle varying days
-            month = current.month + freq
-            year = current.year + (month - 1) // 12
-            month = (month - 1) % 12 + 1
-            day = min(current.day, _days_in_month(year, month))
-            current = current.replace(year=year, month=month, day=day)
+            current = _add_months(current, freq)
+        elif pattern == "quarterly":
+            current = _add_months(current, 3 * freq)
         elif pattern == "yearly":
             current = current.replace(year=current.year + freq)
         else:
@@ -163,6 +162,15 @@ def _generate_occurrences(rule, start: datetime, end: datetime) -> List[datetime
             occurrences.append(current)
 
     return occurrences
+
+
+def _add_months(dt: datetime, months: int) -> datetime:
+    """Add a number of months to a datetime, clamping the day to the target month."""
+    month = dt.month + months
+    year = dt.year + (month - 1) // 12
+    month = (month - 1) % 12 + 1
+    day = min(dt.day, _days_in_month(year, month))
+    return dt.replace(year=year, month=month, day=day)
 
 
 def _days_in_month(year: int, month: int) -> int:

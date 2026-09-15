@@ -471,7 +471,7 @@ class TestRecurringCRUD:
                 "pattern": "monthly",
                 "frequency": 1,
                 "expected_amount": 10.0,
-                "expected_date": "2026-02-01T00:00:00",
+                "expected_date": "2027-01-01T00:00:00",
             },
         )
         assert response.status_code == 201
@@ -496,7 +496,7 @@ class TestRecurringCRUD:
                 "pattern": "monthly",
                 "frequency": 1,
                 "expected_amount": 10.0,
-                "expected_date": "2026-02-01T00:00:00",
+                "expected_date": "2027-01-01T00:00:00",
             },
         )
         assert response.status_code == 404
@@ -511,7 +511,7 @@ class TestRecurringCRUD:
 
         await auth_client.post(
             "/api/recurring/",
-            json={"transaction_id": tx_id, "pattern": "monthly", "frequency": 1, "expected_amount": 10.0, "expected_date": "2026-02-01T00:00:00"},
+            json={"transaction_id": tx_id, "pattern": "monthly", "frequency": 1, "expected_amount": 10.0, "expected_date": "2027-01-01T00:00:00"},
         )
 
         response = await auth_client.get("/api/recurring/")
@@ -528,7 +528,7 @@ class TestRecurringCRUD:
 
         rr_resp = await auth_client.post(
             "/api/recurring/",
-            json={"transaction_id": tx_id, "pattern": "monthly", "frequency": 1, "expected_amount": 10.0, "expected_date": "2026-02-01T00:00:00"},
+            json={"transaction_id": tx_id, "pattern": "monthly", "frequency": 1, "expected_amount": 10.0, "expected_date": "2027-01-01T00:00:00"},
         )
         rule_id = rr_resp.json()["id"]
 
@@ -548,7 +548,7 @@ class TestRecurringCRUD:
 
         await auth_client.post(
             "/api/recurring/",
-            json={"transaction_id": tx_id, "pattern": "monthly", "frequency": 1, "expected_amount": 10.0, "expected_date": "2026-02-01T00:00:00"},
+            json={"transaction_id": tx_id, "pattern": "monthly", "frequency": 1, "expected_amount": 10.0, "expected_date": "2027-01-01T00:00:00"},
         )
 
         response = await second_client.get("/api/recurring/")
@@ -565,12 +565,51 @@ class TestRecurringCRUD:
 
         rr_resp = await auth_client.post(
             "/api/recurring/",
-            json={"transaction_id": tx_id, "pattern": "monthly", "frequency": 1, "expected_amount": 10.0, "expected_date": "2026-02-01T00:00:00"},
+            json={"transaction_id": tx_id, "pattern": "monthly", "frequency": 1, "expected_amount": 10.0, "expected_date": "2027-01-01T00:00:00"},
         )
         rule_id = rr_resp.json()["id"]
 
         response = await second_client.delete(f"/api/recurring/{rule_id}")
         assert response.status_code == 404
+
+    async def test_create_recurring_rule_rejects_past_expected_date(self, auth_client: AsyncClient, create_account):
+        account = await create_account(initial_balance=100.0)
+        tx_resp = await auth_client.post(
+            "/api/transactions/",
+            json={"account_id": account["id"], "type": "expense", "amount": 10.0, "category": "Food", "description": "Recurring", "date": "2026-01-01T00:00:00"},
+        )
+        tx_id = tx_resp.json()["id"]
+
+        response = await auth_client.post(
+            "/api/recurring/",
+            json={
+                "transaction_id": tx_id,
+                "pattern": "monthly",
+                "frequency": 1,
+                "expected_amount": 10.0,
+                "expected_date": "2026-02-01T00:00:00",
+            },
+        )
+        assert response.status_code == 422
+
+    async def test_create_transaction_rejects_past_recurring_expected_date(self, auth_client: AsyncClient, create_account):
+        account = await create_account(initial_balance=100.0)
+        response = await auth_client.post(
+            "/api/transactions/",
+            json={
+                "account_id": account["id"],
+                "type": "expense",
+                "amount": 10.0,
+                "category": "Food",
+                "description": "Recurring",
+                "date": "2026-01-01T00:00:00",
+                "is_recurring": 1,
+                "recurring_pattern": "monthly",
+                "recurring_frequency": 1,
+                "recurring_expected_date": "2026-02-01T00:00:00",
+            },
+        )
+        assert response.status_code == 422
 
     async def test_upcoming_occurrences_expansion(self, auth_client: AsyncClient, create_account):
         from datetime import datetime, timedelta
@@ -593,9 +632,66 @@ class TestRecurringCRUD:
             },
         )
 
-        response = await auth_client.get("/api/recurring/upcoming?days=60")
+        response = await auth_client.get("/api/recurring/upcoming?days=120")
         assert response.status_code == 200
         upcoming = response.json()
         assert len(upcoming) >= 1
         assert all("expected_date" in u for u in upcoming)
         assert all("expected_amount" in u for u in upcoming)
+
+    async def test_upcoming_biweekly_expansion(self, auth_client: AsyncClient, create_account):
+        account = await create_account(initial_balance=100.0)
+        tx_resp = await auth_client.post(
+            "/api/transactions/",
+            json={"account_id": account["id"], "type": "expense", "amount": 20.0, "category": "Food", "description": "Biweekly", "date": "2026-01-01T00:00:00"},
+        )
+        tx_id = tx_resp.json()["id"]
+
+        future_date = (datetime.utcnow() + timedelta(days=1)).isoformat()
+        await auth_client.post(
+            "/api/recurring/",
+            json={
+                "transaction_id": tx_id,
+                "pattern": "biweekly",
+                "frequency": 1,
+                "expected_amount": 20.0,
+                "expected_date": future_date,
+            },
+        )
+
+        response = await auth_client.get("/api/recurring/upcoming?days=60")
+        assert response.status_code == 200
+        upcoming = response.json()
+        assert len(upcoming) >= 3
+        dates = [datetime.fromisoformat(u["expected_date"].replace("Z", "")) for u in upcoming]
+        for first, second in zip(dates, dates[1:]):
+            assert (second - first).days == 14
+
+    async def test_upcoming_quarterly_expansion(self, auth_client: AsyncClient, create_account):
+        account = await create_account(initial_balance=100.0)
+        tx_resp = await auth_client.post(
+            "/api/transactions/",
+            json={"account_id": account["id"], "type": "expense", "amount": 300.0, "category": "Insurance", "description": "Quarterly", "date": "2026-01-01T00:00:00"},
+        )
+        tx_id = tx_resp.json()["id"]
+
+        future_date = (datetime.utcnow() + timedelta(days=1)).isoformat()
+        await auth_client.post(
+            "/api/recurring/",
+            json={
+                "transaction_id": tx_id,
+                "pattern": "quarterly",
+                "frequency": 1,
+                "expected_amount": 300.0,
+                "expected_date": future_date,
+            },
+        )
+
+        response = await auth_client.get("/api/recurring/upcoming?days=365")
+        assert response.status_code == 200
+        upcoming = response.json()
+        assert len(upcoming) >= 3
+        dates = [datetime.fromisoformat(u["expected_date"].replace("Z", "")) for u in upcoming]
+        for first, second in zip(dates, dates[1:]):
+            month_diff = (second.year - first.year) * 12 + (second.month - first.month)
+            assert month_diff == 3
