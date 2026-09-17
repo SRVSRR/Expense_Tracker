@@ -45,7 +45,7 @@ P0 (Foundation) → Auth Migration → P2 (ML Upgrade) → P1 (Finish Features) 
 
 Each phase is complete when:
 - [ ] All tasks checked in TODO.md
-- [ ] All tests pass (87/87)
+- [ ] All tests pass (95/95)
 - [ ] Documentation updated
 - [ ] AGENTS.md change log updated
 - [ ] Code compiles and passes lint/typecheck

@@ -427,10 +427,9 @@ For the full operational checklist, see [docs/INFRASTRUCTURE.md](docs/INFRASTRUC
 ## Current limitations
 
 - The repository is API-only; no frontend is currently part of this project.
-- The automated suite has 82 tests, but dedicated integration coverage is still missing for conditional `is_recurring` rule creation and future-date validation.
+- The automated suite has 95 tests; `with_db_transaction` is not yet wired into route business logic and no circuit breaker is implemented for external services.
 - Supabase Auth is required in production; local HS256 tokens are test-only.
 - A transaction creates a recurring rule only when `is_recurring`, `recurring_pattern`, `recurring_frequency`, and `recurring_expected_date` are all supplied.
-- Accepted `biweekly` and `quarterly` recurrence patterns are not yet expanded beyond the initial expected date.
 - Changing a transaction's type or account is not yet supported as a balance-preserving operation; amount changes are handled.
 - Forecasting uses LightGBM regressors with rolling, lag, velocity, and seasonality features.
 - Prediction generation is request-driven; scheduled jobs are not yet implemented.
@@ -442,7 +441,7 @@ For the full operational checklist, see [docs/INFRASTRUCTURE.md](docs/INFRASTRUC
 ```text
 Expense_Tracker/
 ├── backend/
-│   ├── main.py                         FastAPI entrypoint and router registration
+│   ├── main.py                         Thin entrypoint that calls `create_app()`
 │   ├── requirements.txt                 Python dependencies
 │   ├── .env.example                     Configuration template
 │   ├── alembic.ini                      Migration configuration

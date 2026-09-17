@@ -101,14 +101,14 @@ Completed:
 
 **P0 Complete**: All integration tests for auth/user isolation, CRUD + balance effects, forecast/budget/cache invalidation, category parent ownership validation, and transaction edit policy (`type`/`account_id` immutable) are passing.
 
-**Auth Migration**: Phases 1-4 complete. `get_current_user` uses Supabase RS256/JWKS verification in production and local HS256 only for tests; local auth routes and the local `users` table are removed. All 82 tests pass.
+**Auth Migration**: Phases 1-4 complete. `get_current_user` uses Supabase RS256/JWKS verification in production and local HS256 only for tests; local auth routes and the local `users` table are removed. All 95 tests pass.
 
 **P1 (Finish documented functionality): COMPLETE**
 - Recurring rules reject past `expected_date` (422) via Pydantic future-date validation; `biweekly` and `quarterly` occurrence expansion are supported in `/api/recurring/upcoming`
 - Route-level failures use the shared `{code, message, details}` exception envelope (`NotFoundError` etc.); `with_retry` protects read-heavy analytics computations against transient DB errors; startup logs and re-raises a clear error if Alembic migrations fail
 - The app factory (`app/factory.py`) owns routers, CORS, request-logging middleware, `/`, `/health`, and the lifespan that runs migrations; `main.py` is a thin entrypoint
 - All routes document standard error responses with examples via the shared `app/utils/openapi.py` module
-- All 87 tests pass. Remaining explicit debt: `with_db_transaction` not yet used in route business logic, and no circuit breaker is implemented.
+- All 95 tests pass. Remaining explicit debt: `with_db_transaction` not yet used in route business logic, and no circuit breaker is implemented.
 
 **P3 (Production hardening): IN PROGRESS — item 1 (SECRET_KEY/CORS) COMPLETE**
 - CORS is `CORS_ORIGINS`-driven with fail-fast: wildcards and unset values raise at startup outside `TESTING=1`
