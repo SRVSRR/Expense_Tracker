@@ -7,6 +7,20 @@ to know each step is done. Follow the phases in sequence. Do not start a
 phase until the previous phase's "Definition of done" is satisfied. If
 something here is ambiguous, stop and ask rather than guessing.
 
+## Ask before acting; do not improvise
+
+- Whenever the agent is unsure about intent, scope, or the right choice, it
+  MUST stop and ask the user a focused question instead of guessing or
+  improvising on its own. Do not assume what the user wants.
+- Do not make changes the user did not ask for, even if they seem obviously
+  beneficial. Unrequested "improvements", refactors, or scope expansion are
+  unwanted without explicit approval.
+- Before each change, the agent should be able to state what the user asked
+  for and how the planned change maps to it. If it cannot, ask first.
+- Confirm the implementation/delivery style (e.g. preset/whatever) with the
+  user only when genuinely ambiguous; otherwise keep questions limited to
+  real decision points.
+
 ## Project summary
 
 A full-stack personal finance API with manual-entry income + expense tracking
@@ -280,6 +294,7 @@ future phases.
 | 2026-09-16 | P1 OpenAPI route examples (`38834b7`) | Added shared `app/utils/openapi.py` error blocks (400/401/404/422/429/500) and `responses=`/summaries/descriptions on all accounts, transactions, categories, recurring, budget, categorize, and auth route decorators; forecast refactored to the shared module. 87 tests pass. |
 | 2026-09-16 | P1 docs sync | Marked P1 complete in `TODO.md`, `AGENTS.md`, and `docs/phases/P1_PHASE.md`; reconciled factory/lifespan description in `docs/INFRASTRUCTURE.md`; corrected P3 phase status. Merely a documentation pass; no application-code changes. |
 | 2026-09-17 | Fix Render startup: Alembic ini path | `backend/app/factory.py` resolved `alembic.ini` relative to `backend/app/` (where it does not exist), so startup failed with `No 'script_location' key found in configuration`. Lifespan now uses backend-dir `ALEMBIC_INI`; added `tests/test_factory.py` (3 tests) guarding ini path, `script_location` resolution, and lifespan wiring. 90 tests pass. |
+| 2026-09-17 | Docs + agent guidance update | `docs/INFRASTRUCTURE.md` step 5 now documents that migrations run automatically at boot (lifespan → `alembic upgrade head`, `backend/alembic.ini`, `env.py` sync-driver handling) instead of a manual command. `AGENTS.md` gained an "Ask before acting; do not improvise" section requiring the agent to stop and ask the user whenever intent/scope is unclear. Documentation-only; no application-code changes. |
 
 ## What to do next (priority order)
 

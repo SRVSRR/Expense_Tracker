@@ -38,12 +38,15 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 2. For the Supabase **Transaction pooler**, select port `6543` in the Connect panel and store the resulting string in the local secret file `backend/.env` as `DATABASE_URL`. Convert the driver prefix to `postgresql+asyncpg://` if Supabase provides `postgres://` or `postgresql://`.
 3. The application automatically sets `asyncpg`'s `statement_cache_size=0` for PostgreSQL URLs, which is required when using transaction pooling. Do not put the password in source control, logs, or client applications.
 4. Set a unique production `SECRET_KEY`.
-5. Run migrations from the backend directory before starting the service:
-
-```sh
-alembic upgrade head
-```
-
+5. Migrations run automatically on boot: the app-factory lifespan
+   (`backend/app/factory.py`) runs `alembic upgrade head` against the
+   configured database at startup and fails loudly if anything is wrong.
+   It loads `backend/alembic.ini` (which points `script_location` at
+   `backend/alembic/`), and `backend/alembic/env.py` reads `DATABASE_URL`
+   from the environment, rewrites the async driver prefix to its sync
+   equivalent, and applies pending migration scripts from
+   `backend/alembic/versions/` in order. Running `alembic upgrade head`
+   manually from the backend directory is only needed for debugging.
 6. Confirm `/health`, `/docs`, and a protected endpoint with a Supabase-issued access token.
 
 Production authentication uses Supabase Auth exclusively. There are no backend registration or login endpoints.
