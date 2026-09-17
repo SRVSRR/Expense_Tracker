@@ -89,6 +89,10 @@ Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 	`Config` at `backend/app/alembic.ini`, which does not exist; it now uses
 	`BACKEND_DIR/alembic.ini` with a regression-guard test file
 	(`tests/test_factory.py`, 3 tests). Verified 90 tests pass.
+- **2026-09-18**: P3 item 1 complete — CORS now reads `CORS_ORIGINS`
+	(comma-separated allowlist) via `get_cors_origins()` in `app/factory.py`;
+	missing value or wildcard fails startup outside `TESTING=1`. Added 5 CORS
+	tests in `tests/test_factory.py`. Verified 95 tests pass.
 
 ## P0 - Make the current API trustworthy
 
@@ -145,7 +149,7 @@ Phased migration documented in [docs/MIGRATION.md](docs/MIGRATION.md). Scope: ba
 ## P3 - Production hardening
 
 - [x] Move authentication to Supabase Auth (completed).
-- [ ] Use a strong production `SECRET_KEY` and environment-specific CORS origins.
+- [x] Use a strong production `SECRET_KEY` and environment-specific CORS origins. `SECRET_KEY` is test-only (Supabase signs production tokens). CORS now loads from `CORS_ORIGINS` (comma-separated allowlist) with startup fail-fast and wildcard rejection outside tests.
 - [ ] Add production rate limiting, structured logs, backups, and error monitoring. `slowapi` is installed and `/api/categorize/train` is limited; broader limits and monitoring remain.
 - [ ] Run migrations as a release step. Startup currently runs `alembic upgrade head`; the basic `/health` endpoint checks database connectivity with `SELECT 1`.
 - [x] Deploy the API and configure the `/health` endpoint for Render. Record the stable HTTPS URL `https://expense-tracker-uwrp.onrender.com` and the mobile client configuration.

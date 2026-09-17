@@ -68,11 +68,8 @@ The API uses asynchronous SQLAlchemy sessions. The runtime database is Supabase 
 
 - Scheduled prediction generation; current cache writes remain request-driven
 - Automatic recurring-transaction detection
-- Expansion support for accepted `biweekly` and `quarterly` recurrence patterns beyond the initial expected date
-- Dedicated integration coverage for conditional recurring-rule creation and future-date validation
-- Wiring shared exception handlers, retry helpers, and transactional helpers consistently into routes and migrations
-- Broader endpoint-level OpenAPI response and error examples
-- CI, production CORS hardening, and operational monitoring
+- Wiring `with_db_transaction` into route business logic and adding a circuit breaker for external service calls
+- CI, broader rate limiting, and operational monitoring (log aggregation, error tracking, backups)
 
 See [TODO.md](TODO.md) for the prioritized implementation queue and [docs/INFRASTRUCTURE.md](docs/INFRASTRUCTURE.md) for the operational runbook.
 
@@ -128,6 +125,7 @@ Copy [backend/.env.example](backend/.env.example) to `backend/.env`. Do not comm
 ```env
 DATABASE_URL=postgresql+asyncpg://postgres.<project-ref>:<password>@<pooler-host>:6543/postgres
 SECRET_KEY=replace-with-a-long-random-value
+CORS_ORIGINS=http://localhost:3000,http://localhost:8081
 SUPABASE_JWKS_URL=https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json
 SUPABASE_ISSUER=https://<project-ref>.supabase.co/auth/v1
 TESTING=0
@@ -140,6 +138,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440
 |---|---:|---|
 | `DATABASE_URL` | Yes in production | Async SQLAlchemy URL. Use `sqlite+aiosqlite:///./expense_tracker.db` locally or `postgresql+asyncpg://...` for PostgreSQL. |
 | `SECRET_KEY` | Yes in tests | Local HS256 test-token secret; Supabase signs production tokens. |
+| `CORS_ORIGINS` | Yes outside tests | Comma-separated allowed browser origins. Wildcards are rejected outside tests and startup fails fast if unset. |
 | `SUPABASE_JWKS_URL` | Yes in production | Supabase JWKS endpoint used to verify RS256 access tokens. |
 | `SUPABASE_ISSUER` | Yes in production | Supabase JWT issuer, normally `https://<project-ref>.supabase.co/auth/v1`. |
 | `TESTING` | No | Set to `1` only for isolated tests; any other value uses Supabase JWT verification. |
@@ -393,7 +392,12 @@ backend verifies Supabase-issued RS256 tokens through the project's JWKS endpoin
 
 ### Production CORS
 
-The current code permits all origins for development convenience. Before exposing browser-based clients, replace the wildcard with an allowlist of known HTTPS origins. Native mobile clients do not use browser CORS in the same way, but the API should still use restrictive production defaults.
+Allowed browser origins are read from the `CORS_ORIGINS` environment variable
+(comma-separated). Outside tests the API rejects wildcards and fails fast at
+startup when `CORS_ORIGINS` is unset, so production never ships permissive
+CORS. Set it on Render to the actual mobile/web client origins. Native mobile
+and desktop clients do not use browser CORS, but the variable must still be
+set so the service starts.
 
 ### Release verification
 
@@ -414,7 +418,7 @@ For the full operational checklist, see [docs/INFRASTRUCTURE.md](docs/INFRASTRUC
 - Restrict database network access to the API and administrative paths.
 - Enable PostgreSQL backups and test restoration.
 - Add broader production rate limiting and monitoring before public launch. Only ML training (`POST /api/categorize/train`) currently has an application-level limit.
-- Configure CORS per environment.
+- CORS origins are env-driven via `CORS_ORIGINS`; keep them restricted to known client origins.
 - Run dependency and vulnerability scans in CI.
 - Keep migrations reversible where practical and back up before destructive changes.
 - Add database connectivity to the health/readiness checks before autoscaling.
@@ -430,7 +434,7 @@ For the full operational checklist, see [docs/INFRASTRUCTURE.md](docs/INFRASTRUC
 - Changing a transaction's type or account is not yet supported as a balance-preserving operation; amount changes are handled.
 - Forecasting uses LightGBM regressors with rolling, lag, velocity, and seasonality features.
 - Prediction generation is request-driven; scheduled jobs are not yet implemented.
-- CORS is permissive by default and must be hardened for production.
+- CORS origins are loaded from `CORS_ORIGINS`; wildcard CORS is rejected outside tests and a missing value fails startup.
 - The API does not yet provide idempotency keys for safe external retries.
 
 ## Project layout
@@ -466,7 +470,7 @@ Before calling a deployment production-ready:
 - [ ] User isolation is tested for reads, updates, and deletes.
 - [ ] PostgreSQL migrations run successfully on a clean database.
 - [ ] Production secrets are stored in the hosting provider.
-- [ ] CORS is restricted to required origins.
+- [x] CORS is restricted to required origins (`CORS_ORIGINS` env var; wildcards rejected).
 - [ ] `/health` and database readiness monitoring are configured.
 - [ ] Backups and restoration have been tested.
 - [ ] Logs and error reporting exclude credentials and sensitive financial data.

@@ -5,14 +5,14 @@ Hardening the API for production deployment. Focus on reliability, observability
 
 ## Status: In Progress (partial)
 
-Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, and `slowapi` limits ML training. Remaining P3 work (production SECRET_KEY/CORS env config, broader rate limits, CI, monitoring, backups) is unscoped.
+Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, `slowapi` limits ML training, and CORS is env-driven and fails fast in production. Remaining P3 work (broader rate limits, CI, monitoring, backups) is unscoped.
 
 ---
 
 ## Tasks
 
 ### 1. Production SECRET_KEY & CORS
-**Status**: Not Started  
+**Status**: Complete — CORS is read from `CORS_ORIGINS` (comma-separated allowlist); wildcards are rejected and a missing value fails startup outside tests. `SECRET_KEY` remains a test-only convenience value because Supabase Auth signs production tokens.
 **Priority**: Critical
 
 **Requirements:**
@@ -21,13 +21,13 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 - Remove wildcard CORS in production
 
 **Files:**
-- `backend/.env.production` (new)
-- `backend/main.py` — CORS configuration from env
+- `backend/.env.example` — `CORS_ORIGINS` documented
+- `backend/app/factory.py` — `get_cors_origins()` reads `CORS_ORIGINS`, raises `RuntimeError` when unset or wildcard outside `TESTING=1`
 
 **Acceptance:**
-- Production uses unique SECRET_KEY
-- CORS origins configurable via `CORS_ORIGINS` env var
-- No wildcard origins in production
+- Production uses unique SECRET_KEY — documented; SECRET_KEY only mints test tokens (Supabase signs production tokens)
+- CORS origins configurable via `CORS_ORIGINS` env var — implemented
+- No wildcard origins in production — enforced at startup (fail fast)
 
 ---
 
@@ -250,7 +250,7 @@ jobs:
 ## Timeline Estimate
 | Task | Estimate |
 |------|----------|
-| 1. SECRET_KEY/CORS | 0.5 day |
+| 1. SECRET_KEY/CORS | 0.5 day ✅ done (2026-09-18) |
 | 2. Rate Limiting | 1 day |
 | 3. Structured Logging | 1-2 days |
 | 4. Error Monitoring | 1 day |

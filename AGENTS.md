@@ -68,7 +68,7 @@ correctness over frontend UI concerns.
 - Registration was verified on 2026-09-06 with a live `201 Created` response;
   user responses must continue to exclude password fields and password hashes.
 
-## Current status (as of 2026-09-16)
+## Current status (as of 2026-09-18)
 
 **Phases 1–6: COMPLETE (with API + caching + P0 test coverage)**
 
@@ -110,6 +110,11 @@ Completed:
 - All routes document standard error responses with examples via the shared `app/utils/openapi.py` module
 - All 87 tests pass. Remaining explicit debt: `with_db_transaction` not yet used in route business logic, and no circuit breaker is implemented.
 
+**P3 (Production hardening): IN PROGRESS — item 1 (SECRET_KEY/CORS) COMPLETE**
+- CORS is `CORS_ORIGINS`-driven with fail-fast: wildcards and unset values raise at startup outside `TESTING=1`
+- `SECRET_KEY` is documented as test-only convenience; Supabase Auth signs production tokens
+- 5 CORS tests added; 95 tests pass. Remaining P3 items: broader rate limiting, CI, monitoring/backups.
+
 **Deployment and mobile handoff**: The FastAPI backend is deployed on Render with
 Supabase Auth as the production provider. Render uses `/health` as the health-check
 path; the endpoint verifies database connectivity with `SELECT 1`. The mobile
@@ -132,7 +137,7 @@ client must use `@supabase/supabase-js`, send Supabase access tokens as Bearer
 
 - **bcrypt pinned to <5**: `passlib` is removed; we use `bcrypt` directly. Version 4.x works; 5.x broke passlib.
 - **PostgreSQL**: Supabase Transaction pooler uses port 6543; asyncpg prepared-statement caching is disabled
-- **CORS**: `allow_origins=["*"]` — adjust for production
+- **CORS**: loaded from `CORS_ORIGINS` env var; wildcards rejected and missing value fails startup outside tests
 
 ## API endpoints (API-only)
 
@@ -179,7 +184,7 @@ The backend only verifies the Supabase-issued JWT via JWKS.
 
 - **Python**: type hints throughout; keep Pydantic models accurate
 - **SQLite**: `echo=False` in engine config; Alembic migrations use a sync engine
-- **CORS**: `allow_origins=["*"]` — configure for production
+- **CORS**: loaded from `CORS_ORIGINS` env var; wildcards rejected and missing value fails startup outside tests
 - **API namespace**: `/accounts`, `/transactions`, `/forecast/cashflow`, etc.
 - **All endpoints scoped**: never return another user's data
 - **Predictions cached**: write to `predictions` table via scheduled jobs, read
@@ -295,18 +300,19 @@ future phases.
 | 2026-09-16 | P1 docs sync | Marked P1 complete in `TODO.md`, `AGENTS.md`, and `docs/phases/P1_PHASE.md`; reconciled factory/lifespan description in `docs/INFRASTRUCTURE.md`; corrected P3 phase status. Merely a documentation pass; no application-code changes. |
 | 2026-09-17 | Fix Render startup: Alembic ini path | `backend/app/factory.py` resolved `alembic.ini` relative to `backend/app/` (where it does not exist), so startup failed with `No 'script_location' key found in configuration`. Lifespan now uses backend-dir `ALEMBIC_INI`; added `tests/test_factory.py` (3 tests) guarding ini path, `script_location` resolution, and lifespan wiring. 90 tests pass. |
 | 2026-09-17 | Docs + agent guidance update | `docs/INFRASTRUCTURE.md` step 5 now documents that migrations run automatically at boot (lifespan → `alembic upgrade head`, `backend/alembic.ini`, `env.py` sync-driver handling) instead of a manual command. `AGENTS.md` gained an "Ask before acting; do not improvise" section requiring the agent to stop and ask the user whenever intent/scope is unclear. Documentation-only; no application-code changes. |
+| 2026-09-18 | P3 item 1: SECRET_KEY/CORS hardening | Added `get_cors_origins()` to `backend/app/factory.py` — CORS loads from `CORS_ORIGINS` (comma-separated allowlist); wildcard sequences and unset values raise `RuntimeError` at startup unless `TESTING=1`. Added 5 CORS tests in `tests/test_factory.py`; updated `.env.example`, `README.md`, `SECURITY.md`, `docs/INFRASTRUCTURE.md`, `docs/phases/P3_PHASE.md` (item 1 complete), and `TODO.md`. 95 tests pass. |
 
 ## What to do next (priority order)
 
-1. **P3: Production hardening** — Rate limiting, CI, monitoring, and production secret/CORS review
-2. **Mobile integration** — Configure the mobile repository with the final Render API URL and Supabase project settings
+1. **P3: Production hardening** — Broader rate limiting (item 2), CI, monitoring/backups. Item 1 (SECRET_KEY/CORS) is complete: CORS is `CORS_ORIGINS`-driven with fail-fast, `SECRET_KEY` is documented as test-only.
+2. **Mobile integration** — Configure the mobile repository with the final Render API URL (`https://expense-tracker-uwrp.onrender.com`) and Supabase project settings
 3. **Documented technical debt** — Wire `with_db_transaction` into route business logic (startup/transaction rollbacks) and implement a circuit breaker for external service calls
 
 ## Conventions the agent must follow throughout
 
 - **Python**: type hints throughout; keep Pydantic models accurate
 - **Database**: Supabase PostgreSQL at runtime; in-memory SQLite is test-only
-- **CORS**: `allow_origins=["*"]` — adjust for production
+- **CORS**: loaded from `CORS_ORIGINS` env var; wildcards rejected and missing value fails startup outside tests
 - **API namespace**: `/accounts`, `/transactions`, `/forecast/cashflow`, etc.
 - **All endpoints scoped**: never return another user's data
 - **Predictions cached**: write to `predictions` table via scheduled jobs, read from cache in the API
@@ -318,7 +324,7 @@ future phases.
   /backend                        FastAPI API app
     main.py                       Thin entrypoint: load_dotenv + create_app()
     requirements.txt              Python deps (aiosqlite, fastapi, lightgbm, etc.)
-    .env                          DATABASE_URL, SECRET_KEY
+    .env                          DATABASE_URL, SECRET_KEY, CORS_ORIGINS
     /app
       factory.py                App factory: routers, CORS, middleware, /health, lifespan(migrations)
       /db

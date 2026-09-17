@@ -33,6 +33,32 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ALEMBIC_INI = os.path.join(BACKEND_DIR, "alembic.ini")
 
 
+def get_cors_origins() -> list[str]:
+    """Resolve allowed CORS origins from the ``CORS_ORIGINS`` env var.
+
+    ``CORS_ORIGINS`` is a comma-separated list of concrete origins. Wildcard
+    origins are rejected and a missing value fails fast, so production can
+    never silently ship a permissive CORS configuration. Tests may use "*".
+    """
+    if os.getenv("TESTING") == "1":
+        return ["*"]
+    raw = os.getenv("CORS_ORIGINS")
+    if not raw or not raw.strip():
+        raise RuntimeError(
+            "CORS_ORIGINS is not set. Configure comma-separated origin URLs "
+            "for this environment (e.g. "
+            "CORS_ORIGINS=https://app.example.com,http://localhost:3000). "
+            "Wildcard '*' CORS is disallowed outside tests."
+        )
+    origins = [origin.strip() for origin in raw.split(",") if origin.strip()]
+    if "*" in origins:
+        raise RuntimeError(
+            "CORS_ORIGINS must not contain '*'. List concrete origins so "
+            "production never serves wildcard CORS."
+        )
+    return origins
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup/shutdown lifecycle: run Alembic migrations and fail loudly on error."""
@@ -152,7 +178,7 @@ Breaking changes may occur without notice. API stability not guaranteed until v1
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],  # Configure appropriately for production
+        allow_origins=get_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

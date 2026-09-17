@@ -34,7 +34,7 @@ Do not open public issues for security vulnerabilities. We will acknowledge rece
 - Supabase transaction-pooler connections disable asyncpg prepared-statement caching; database credentials remain local or in the hosting provider's secret store
 
 ### API Security
-- CORS configured for development (`allow_origins=["*"]`) — restrict in production (see Production Checklist)
+- CORS loaded from `CORS_ORIGINS` env var (comma-separated allowlist). Outside tests, wildcards are rejected and a missing value fails startup — no permissive CORS in production.
 - Input validation via Pydantic schemas on all endpoints
 - SQL injection prevention via SQLAlchemy ORM (parameterized queries)
 - Rate limiting: partially implemented with `slowapi`; ML training is limited to 2 requests/hour. Broader production limits and monitoring remain planned for P3.
@@ -57,7 +57,7 @@ LightGBM models are saved to `backend/app/ml/saved_models/` via `joblib.dump`/`j
 Before deploying to production:
 
 - [ ] Set `SUPABASE_JWKS_URL` and `SUPABASE_ISSUER` environment variables
-- [ ] Set `CORS_ORIGINS` to specific frontend domains
+- [x] Set `CORS_ORIGINS` to specific frontend domains (wildcards rejected, missing value fails startup outside tests)
 - [ ] Enable HTTPS/TLS termination
 - [ ] Configure PostgreSQL with SSL mode (Supabase Transaction Pooler)
 - [ ] Set up structured logging and monitoring

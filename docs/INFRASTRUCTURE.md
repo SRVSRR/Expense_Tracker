@@ -26,18 +26,19 @@ DATABASE_URL=postgresql+asyncpg://postgres.<project-ref>:<password>@<pooler-host
 SUPABASE_JWKS_URL=https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json
 SUPABASE_ISSUER=https://<project-ref>.supabase.co/auth/v1
 SECRET_KEY=replace-with-a-long-random-development-value
+CORS_ORIGINS=http://localhost:3000,http://localhost:8081
 TESTING=0
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 ```
 
-`SECRET_KEY` and local HS256 tokens are used only by the isolated automated-test fixtures. The API startup runs Alembic migrations against Supabase. Do not commit `.env` or expose the database URL.
+`SECRET_KEY` and local HS256 tokens are used only by the isolated automated-test fixtures. The API startup runs Alembic migrations against Supabase. `CORS_ORIGINS` is a comma-separated allowlist of browser origins; outside tests, wildcards are rejected and a missing value fails startup. Do not commit `.env` or expose the database URL.
 
 ## Supabase/PostgreSQL
 
 1. Create a Supabase project and copy its pooled PostgreSQL connection string.
 2. For the Supabase **Transaction pooler**, select port `6543` in the Connect panel and store the resulting string in the local secret file `backend/.env` as `DATABASE_URL`. Convert the driver prefix to `postgresql+asyncpg://` if Supabase provides `postgres://` or `postgresql://`.
 3. The application automatically sets `asyncpg`'s `statement_cache_size=0` for PostgreSQL URLs, which is required when using transaction pooling. Do not put the password in source control, logs, or client applications.
-4. Set a unique production `SECRET_KEY`.
+4. Set a unique production `SECRET_KEY` (used for local test tokens only; Supabase signs production tokens).
 5. Migrations run automatically on boot: the app-factory lifespan
    (`backend/app/factory.py`) runs `alembic upgrade head` against the
    configured database at startup and fails loudly if anything is wrong.
@@ -58,9 +59,9 @@ Railway or Render are suitable for the API. Configure a Python service with:
 - Build command: `pip install -r backend/requirements.txt`
 - Start command: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
 - Health path: `/health`
-- Environment variables: `DATABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`, `SECRET_KEY`, `TESTING`, and `ACCESS_TOKEN_EXPIRE_MINUTES`
+- Environment variables: `DATABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`, `SECRET_KEY`, `CORS_ORIGINS`, `TESTING`, and `ACCESS_TOKEN_EXPIRE_MINUTES`
 
-Use the provider's managed HTTPS URL as the client base URL. Set production CORS to the actual mobile/web client origins instead of `*` when browser clients are introduced. Never expose the database URL or JWT secret to mobile or desktop clients.
+Use the provider's managed HTTPS URL as the client base URL. Set `CORS_ORIGINS` on the provider to the actual mobile/web client origins — do not use `*`; a missing value or a wildcard fails startup outside tests. Native mobile and desktop clients do not use browser CORS, but the variable must still be set so the service starts. Never expose the database URL or JWT secret to mobile or desktop clients.
 
 ## Client connection
 
