@@ -5,7 +5,7 @@ Hardening the API for production deployment. Focus on reliability, observability
 
 ## Status: In Progress (partial)
 
-Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, `slowapi` limits ML training, and CORS is env-driven and fails fast in production. Remaining P3 work (broader rate limits, CI, monitoring, backups) is unscoped.
+Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, per-endpoint rate limits are enforced with user-or-IP buckets, and CORS is env-driven and fails fast in production. Remaining P3 work (CI, monitoring, backups) is unscoped.
 
 ---
 
@@ -32,7 +32,7 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 ---
 
 ### 2. Rate Limiting
-**Status**: Partially Done (slowapi added)  
+**Status**: Complete — per-endpoint tiers enforced via `slowapi` with user-or-IP buckets; `429` + `Retry-After` on excess; tiers documented in `/docs` and `ERROR_429` on all API routes.
 **Priority**: High
 
 **Requirements:**
@@ -42,15 +42,14 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 - Return `429` with `Retry-After` header
 
 **Current State:**
-- `slowapi` installed
-- Limiter configured in `main.py`
-- Auth endpoints: 5/min (register), 10/min (login)
-- Categorization train: 2/hour
+- `slowapi` installed; limiter wired in `app/factory.py` (`RateLimitExceeded` handler) with tiers in `app/utils/rate_limit.py`
+- Buckets keyed by Bearer `sub` claim (bucketing only, enforced post-auth), falling back to client IP
+- Tiers: auth `/me` 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour (unchanged)
+- Limits disabled under `TESTING=1` by design; tier contract + key function + 429 documentation covered by `tests/test_rate_limit.py`
 
 **Remaining:**
 - Tune limits based on load testing
-- Add IP-based + user-based limiting
-- Document limits in OpenAPI
+- A future bulk-sync feature should get its own dedicated tier (all current writes are single-item; no bulk endpoints exist)
 
 ---
 
@@ -251,7 +250,7 @@ jobs:
 | Task | Estimate |
 |------|----------|
 | 1. SECRET_KEY/CORS | 0.5 day ✅ done (2026-09-18) |
-| 2. Rate Limiting | 1 day |
+| 2. Rate Limiting | 1 day ✅ done (2026-09-18) |
 | 3. Structured Logging | 1-2 days |
 | 4. Error Monitoring | 1 day |
 | 5. Backups/PITR | 1 day |

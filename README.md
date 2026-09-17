@@ -417,7 +417,7 @@ For the full operational checklist, see [docs/INFRASTRUCTURE.md](docs/INFRASTRUC
 - Keep `.env`, database URLs, JWTs, and model-training data out of source control and logs.
 - Restrict database network access to the API and administrative paths.
 - Enable PostgreSQL backups and test restoration.
-- Add broader production rate limiting and monitoring before public launch. Only ML training (`POST /api/categorize/train`) currently has an application-level limit.
+- Rate limiting is enforced per endpoint via slowapi (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, training 2/hour). Add monitoring before public launch.
 - CORS origins are env-driven via `CORS_ORIGINS`; keep them restricted to known client origins.
 - Run dependency and vulnerability scans in CI.
 - Keep migrations reversible where practical and back up before destructive changes.

@@ -1,5 +1,5 @@
 """Category management routes"""
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -8,7 +8,8 @@ from app.models import Category
 from app.schemas import CategoryCreate, Category as CategorySchema
 from app.utils import generate_uuid, get_current_user
 from app.utils.exceptions import NotFoundError
-from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_500
+from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_429, ERROR_500
+from app.utils.rate_limit import READ_LIMIT, WRITE_LIMIT, limiter
 
 router = APIRouter()
 
@@ -23,11 +24,14 @@ router = APIRouter()
         401: ERROR_401,
         404: ERROR_404,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def create_category(
     cat_data: CategoryCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -62,10 +66,13 @@ async def create_category(
     responses={
         200: {"description": "List of categories"},
         401: ERROR_401,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(READ_LIMIT)
 async def list_categories(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -83,11 +90,14 @@ async def list_categories(
         200: {"description": "Category details"},
         401: ERROR_401,
         404: ERROR_404,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(READ_LIMIT)
 async def get_category(
     category_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -111,12 +121,15 @@ async def get_category(
         401: ERROR_401,
         404: ERROR_404,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def update_category(
     category_id: str,
     cat_data: CategoryCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -155,11 +168,14 @@ async def update_category(
         204: {"description": "Category deleted successfully"},
         401: ERROR_401,
         404: ERROR_404,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def delete_category(
     category_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):

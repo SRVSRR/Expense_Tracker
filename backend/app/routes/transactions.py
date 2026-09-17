@@ -1,5 +1,5 @@
 """Transaction management routes"""
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime
@@ -16,7 +16,8 @@ from app.schemas import (
 )
 from app.utils import generate_uuid, get_current_user
 from app.utils.exceptions import NotFoundError
-from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_500
+from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_429, ERROR_500
+from app.utils.rate_limit import READ_LIMIT, WRITE_LIMIT, limiter
 from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
@@ -46,10 +47,13 @@ def apply_transaction_balance(
         401: ERROR_401,
         404: ERROR_404,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def create_transaction(
+    request: Request,
     tx_data: TransactionCreate,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
@@ -106,10 +110,13 @@ async def create_transaction(
         200: {"description": "List of transactions"},
         401: ERROR_401,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(READ_LIMIT)
 async def list_transactions(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
     account_id: Optional[str] = None,
@@ -146,11 +153,14 @@ async def list_transactions(
         200: {"description": "Transaction details"},
         401: ERROR_401,
         404: ERROR_404,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(READ_LIMIT)
 async def get_transaction(
     transaction_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -175,12 +185,15 @@ async def get_transaction(
         401: ERROR_401,
         404: ERROR_404,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def update_transaction(
     transaction_id: str,
     tx_data: TransactionUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -224,11 +237,14 @@ async def update_transaction(
         204: {"description": "Transaction deleted successfully"},
         401: ERROR_401,
         404: ERROR_404,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def delete_transaction(
     transaction_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):

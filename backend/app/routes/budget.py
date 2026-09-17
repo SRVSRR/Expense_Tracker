@@ -1,5 +1,5 @@
 """Budget and recommendations routes — rule-based for v1"""
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime, timedelta
@@ -8,7 +8,8 @@ from app.db.database import get_db
 from app.models import Transaction, Account
 from app.utils import get_current_user, with_retry
 from app.services.prediction_cache import get_cached_prediction, store_prediction
-from app.utils.openapi import ERROR_401, ERROR_500
+from app.utils.openapi import ERROR_401, ERROR_429, ERROR_500
+from app.utils.rate_limit import ANALYTICS_LIMIT, limiter
 from app.schemas import BudgetRecommendations, CategoryAnalysis
 
 router = APIRouter()
@@ -135,10 +136,13 @@ async def _compute_category_analysis(db: AsyncSession, user_id: str) -> dict:
     responses={
         200: {"description": "Successful response with budget recommendations"},
         401: ERROR_401,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(ANALYTICS_LIMIT)
 async def get_budget_recommendations(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -160,10 +164,13 @@ async def get_budget_recommendations(
     responses={
         200: {"description": "Successful response with category analysis"},
         401: ERROR_401,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(ANALYTICS_LIMIT)
 async def analyze_category_spending(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):

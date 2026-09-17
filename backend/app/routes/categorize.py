@@ -17,7 +17,13 @@ from app.schemas import (
     CategorizeTrainResponse,
     CategorizeModelInfo,
 )
-from app.utils.rate_limit import limiter
+from app.utils.rate_limit import (
+    ANALYTICS_LIMIT,
+    READ_LIMIT,
+    TRAIN_LIMIT,
+    WRITE_LIMIT,
+    limiter,
+)
 
 router = APIRouter()
 
@@ -31,10 +37,13 @@ router = APIRouter()
         200: {"description": "Category suggestion with confidence"},
         401: ERROR_401,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(ANALYTICS_LIMIT)
 async def categorize_suggest(
+    request: Request,
     data: CategorizeSuggestRequest,
     current_user = Depends(get_current_user),
 ):
@@ -62,11 +71,14 @@ async def categorize_suggest(
         200: {"description": "Correction logged successfully"},
         401: ERROR_401,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def log_correction(
     data: CategorizeCorrectionRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -96,7 +108,7 @@ async def log_correction(
         500: ERROR_500,
     },
 )
-@limiter.limit("2/hour")
+@limiter.limit(TRAIN_LIMIT)
 async def train_model(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -142,10 +154,13 @@ async def train_model(
     responses={
         200: {"description": "Model information"},
         401: ERROR_401,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(READ_LIMIT)
 async def model_info(
+    request: Request,
     current_user = Depends(get_current_user),
 ):
     """Get info about the current ML model."""

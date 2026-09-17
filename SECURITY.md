@@ -37,7 +37,7 @@ Do not open public issues for security vulnerabilities. We will acknowledge rece
 - CORS loaded from `CORS_ORIGINS` env var (comma-separated allowlist). Outside tests, wildcards are rejected and a missing value fails startup — no permissive CORS in production.
 - Input validation via Pydantic schemas on all endpoints
 - SQL injection prevention via SQLAlchemy ORM (parameterized queries)
-- Rate limiting: partially implemented with `slowapi`; ML training is limited to 2 requests/hour. Broader production limits and monitoring remain planned for P3.
+- Rate limiting: enforced with `slowapi` per endpoint tier (auth `/me` 60/min, reads 120/min, writes 30/min, analytics 60/hour, training 2/hour), keyed by authenticated user with IP fallback; `429` + `Retry-After` on excess. Broader monitoring remains planned for P3.
 
 ### Email Enumeration
 **Supabase Auth handles registration**: Supabase's signup flow uses email verification and does not expose whether an email exists in the same way as a custom registration endpoint. The email enumeration trade-off from the previous local auth implementation no longer applies.
@@ -61,7 +61,7 @@ Before deploying to production:
 - [ ] Enable HTTPS/TLS termination
 - [ ] Configure PostgreSQL with SSL mode (Supabase Transaction Pooler)
 - [ ] Set up structured logging and monitoring
-- [ ] Enable rate limiting (e.g., slowapi)
+- [x] Enable rate limiting (slowapi, per-endpoint tiers)
 - [ ] Run `pip-audit` on dependencies
 - [ ] Configure backup and point-in-time recovery for database
 

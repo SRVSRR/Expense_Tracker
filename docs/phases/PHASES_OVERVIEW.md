@@ -36,7 +36,7 @@ P0 (Foundation) → Auth Migration → P2 (ML Upgrade) → P1 (Finish Features) 
 
 **Active**: P3 — Production Hardening
 - Production `SECRET_KEY` and environment-specific CORS origins
-- Broader rate limiting and structured logging/monitoring, backups, CI
+- Structured logging/monitoring, backups, CI
 - Wire `with_db_transaction` into route business logic and implement a circuit breaker for external service calls (documented debt)
 
 ---

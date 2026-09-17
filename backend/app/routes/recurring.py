@@ -1,5 +1,5 @@
 """Recurring rules routes"""
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from datetime import datetime, timedelta
@@ -14,7 +14,8 @@ from app.schemas import (
 )
 from app.utils import generate_uuid, get_current_user
 from app.utils.exceptions import NotFoundError
-from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_500
+from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_429, ERROR_500
+from app.utils.rate_limit import READ_LIMIT, WRITE_LIMIT, limiter
 from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
@@ -31,11 +32,14 @@ router = APIRouter()
         401: ERROR_401,
         404: ERROR_404,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def create_recurring_rule(
     data: RecurringRuleCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -73,10 +77,13 @@ async def create_recurring_rule(
     responses={
         200: {"description": "List of recurring rules"},
         401: ERROR_401,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(READ_LIMIT)
 async def list_recurring_rules(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -97,11 +104,14 @@ async def list_recurring_rules(
         200: {"description": "List of upcoming transaction occurrences"},
         401: ERROR_401,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(READ_LIMIT)
 async def get_upcoming_transactions(
     days: int = Query(default=30, ge=1, le=365, description="Number of days to look ahead"),
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -193,11 +203,14 @@ def _days_in_month(year: int, month: int) -> int:
         204: {"description": "Recurring rule deleted successfully"},
         401: ERROR_401,
         404: ERROR_404,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def delete_recurring_rule(
     rule_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):

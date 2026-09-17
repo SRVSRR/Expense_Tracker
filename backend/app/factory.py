@@ -117,9 +117,15 @@ The backend validates tokens using Supabase's JWKS endpoint. No local registrati
 
 ## Rate Limiting
 
-- Auth endpoints: 5 req/min (register), 10 req/min (login)
-- Categorization training: 2 req/hour
-- General endpoints: No explicit limit (protected by Supabase Auth rate limits)
+Limits are enforced per route via slowapi. Exceeding a limit returns `429`
+with a `Retry-After` header. Buckets are keyed by the authenticated user
+(Bearer token `sub` claim) with client-IP fallback:
+
+- Auth (`GET /api/auth/me`): 60/minute
+- Reads (GET list/detail): 120/minute
+- Writes (POST/PUT/DELETE, corrections): 30/minute
+- Analytics (forecast, budget, categorize/suggest): 60/hour
+- ML training (`POST /api/categorize/train`): 2/hour
 
 ## Error Responses
 

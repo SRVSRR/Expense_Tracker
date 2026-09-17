@@ -1,5 +1,5 @@
 """Account management routes"""
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -8,7 +8,8 @@ from app.models import Account
 from app.schemas import AccountCreate, AccountUpdate, Account as AccountSchema
 from app.utils import generate_uuid, get_current_user
 from app.utils.exceptions import NotFoundError
-from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_500
+from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_429, ERROR_500
+from app.utils.rate_limit import READ_LIMIT, WRITE_LIMIT, limiter
 from app.services.prediction_cache import invalidate_predictions
 
 router = APIRouter()
@@ -23,10 +24,13 @@ router = APIRouter()
         201: {"description": "Account created successfully"},
         401: ERROR_401,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def create_account(
+    request: Request,
     account_data: AccountCreate,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
@@ -53,10 +57,13 @@ async def create_account(
     responses={
         200: {"description": "List of accounts"},
         401: ERROR_401,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(READ_LIMIT)
 async def list_accounts(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -74,11 +81,14 @@ async def list_accounts(
         200: {"description": "Account details"},
         401: ERROR_401,
         404: ERROR_404,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(READ_LIMIT)
 async def get_account(
     account_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -102,12 +112,15 @@ async def get_account(
         401: ERROR_401,
         404: ERROR_404,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def update_account(
     account_id: str,
     account_data: AccountUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -138,11 +151,14 @@ async def update_account(
         204: {"description": "Account deleted successfully"},
         401: ERROR_401,
         404: ERROR_404,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(WRITE_LIMIT)
 async def delete_account(
     account_id: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):

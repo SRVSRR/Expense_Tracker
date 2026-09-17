@@ -1,5 +1,5 @@
 """Forecasting routes (AI/ML features) — LightGBM-powered forecasting with confidence intervals."""
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime, timedelta
@@ -8,7 +8,8 @@ from app.db.database import get_db
 from app.models import Transaction, Account
 from app.utils import get_current_user, with_retry
 from app.services.prediction_cache import get_cached_prediction, store_prediction
-from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_500
+from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_429, ERROR_500
+from app.utils.rate_limit import ANALYTICS_LIMIT, limiter
 from app.ml.forecasting import get_forecast_manager
 from app.schemas import (
     CashflowForecast,
@@ -133,11 +134,14 @@ ANOMALIES_200_EXAMPLE = {
         },
         401: ERROR_401,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(ANALYTICS_LIMIT)
 async def get_cashflow_forecast(
     days: int = Query(default=30, ge=7, le=365, description="Number of days to forecast"),
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -172,11 +176,14 @@ async def get_cashflow_forecast(
         },
         401: ERROR_401,
         422: ERROR_422,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(ANALYTICS_LIMIT)
 async def get_runway_forecast(
     threshold: float = Query(default=0.0, description="Balance threshold (default 0)"),
+    request: Request = None,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
@@ -230,10 +237,13 @@ async def get_runway_forecast(
             }
         },
         401: ERROR_401,
+        429: ERROR_429,
         500: ERROR_500,
     },
 )
+@limiter.limit(ANALYTICS_LIMIT)
 async def detect_anomalies(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
