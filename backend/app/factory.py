@@ -29,12 +29,15 @@ from app.utils.rate_limit import limiter
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("expense_tracker")
 
+BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ALEMBIC_INI = os.path.join(BACKEND_DIR, "alembic.ini")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup/shutdown lifecycle: run Alembic migrations and fail loudly on error."""
     logger.info("Running database migrations...")
-    alembic_cfg = Config(os.path.join(os.path.dirname(__file__), "alembic.ini"))
+    alembic_cfg = Config(ALEMBIC_INI)
     try:
         command.upgrade(alembic_cfg, "head")
     except Exception as exc:

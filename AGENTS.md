@@ -279,6 +279,7 @@ future phases.
 | 2026-09-16 | P1 app factory alignment (`5381f22`) | Rewrote `app/factory.py` to own routers, CORS, logging middleware, `/`, `/health`, exception handlers, and a lifespan that runs migrations (previously lifespan was never wired, so migrations did not run at startup). `main.py` is a thin entrypoint. 87 tests pass. |
 | 2026-09-16 | P1 OpenAPI route examples (`38834b7`) | Added shared `app/utils/openapi.py` error blocks (400/401/404/422/429/500) and `responses=`/summaries/descriptions on all accounts, transactions, categories, recurring, budget, categorize, and auth route decorators; forecast refactored to the shared module. 87 tests pass. |
 | 2026-09-16 | P1 docs sync | Marked P1 complete in `TODO.md`, `AGENTS.md`, and `docs/phases/P1_PHASE.md`; reconciled factory/lifespan description in `docs/INFRASTRUCTURE.md`; corrected P3 phase status. Merely a documentation pass; no application-code changes. |
+| 2026-09-17 | Fix Render startup: Alembic ini path | `backend/app/factory.py` resolved `alembic.ini` relative to `backend/app/` (where it does not exist), so startup failed with `No 'script_location' key found in configuration`. Lifespan now uses backend-dir `ALEMBIC_INI`; added `tests/test_factory.py` (3 tests) guarding ini path, `script_location` resolution, and lifespan wiring. 90 tests pass. |
 
 ## What to do next (priority order)
 

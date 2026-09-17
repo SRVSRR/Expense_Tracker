@@ -84,6 +84,11 @@ Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 	A startup failure now fails loudly with a logged error if Alembic
 	migrations fail. Circuit breaker and `with_db_transaction` in route
 	business logic remain explicit debt.
+- **2026-09-17**: Fixed Render startup failure `No 'script_location' key
+	found in configuration` — the app-factory lifespan pointed Alembic's
+	`Config` at `backend/app/alembic.ini`, which does not exist; it now uses
+	`BACKEND_DIR/alembic.ini` with a regression-guard test file
+	(`tests/test_factory.py`, 3 tests). Verified 90 tests pass.
 
 ## P0 - Make the current API trustworthy
 
