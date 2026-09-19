@@ -68,3 +68,116 @@ def test_create_app_uses_env_cors(monkeypatch):
     cors = [m for m in app.user_middleware if m.cls is CORSMiddleware]
     assert cors
     assert cors[0].kwargs["allow_origins"] == ["https://app.example.com"]
+
+
+def test_request_logging_adds_request_id_header_and_context(monkeypatch):
+    monkeypatch.setenv("TESTING", "0")
+    monkeypatch.setenv("CORS_ORIGINS", "https://app.example.com")
+    app = create_app()
+
+    @app.get("/log-check")
+    async def log_check():
+        return {"ok": True}
+
+    from fastapi.testclient import TestClient
+
+    client = TestClient(app)
+    response = client.get("/log-check")
+
+    assert response.status_code == 200
+    assert "X-Request-ID" in response.headers
+    assert response.headers["X-Request-ID"]
+    # Header should be reused if client sends one
+    response2 = client.get("/log-check", headers={"X-Request-ID": "req_test123"})
+    assert response2.headers["X-Request-ID"] == "req_test123"
+
+
+def test_request_logging_redacts_sensitive_values(caplog):
+    from fastapi.testclient import TestClient
+
+    app = create_app()
+
+    @app.get("/secure-check")
+    async def secure_check():
+        return {"ok": True}
+
+    caplog.set_level("INFO", logger="expense_tracker.request")
+    client = TestClient(app)
+    client.get(
+        "/secure-check",
+        headers={"Authorization": "Bearer secret-token-123"},
+    )
+
+    # Caplog captures the JSON log messages; ensure secret never appears
+    request_logs = [r for r in caplog.records if r.name == "expense_tracker.request"]
+    log_text = "\n".join(record.getMessage() for record in request_logs)
+    assert "secret-token-123" not in log_text
+    # Structured logs should not contain raw Authorization header name with value
+    # If Authorization appears, it must be redacted
+    assert "secret-token-123" not in log_text
+    # Ensure at least one structured log was emitted with required fields
+    assert any("request_id" in r.getMessage() or hasattr(r, "request_id") for r in request_logs)
+
+
+def test_request_logging_emits_structured_json(monkeypatch, caplog):
+    monkeypatch.setenv("TESTING", "0")
+    monkeypatch.setenv("CORS_ORIGINS", "https://app.example.com")
+    from fastapi.testclient import TestClient
+    import json
+
+    app = create_app()
+
+    @app.get("/json-log-check")
+    async def json_check():
+        return {"ok": True}
+
+    caplog.set_level("INFO", logger="expense_tracker.request")
+    client = TestClient(app)
+    client.get("/json-log-check")
+
+    # Find the JSON log record
+    json_records = []
+    for record in caplog.records:
+        if record.name == "expense_tracker.request":
+            try:
+                data = json.loads(record.getMessage())
+                json_records.append(data)
+            except Exception:
+                # Check extra fields on record
+                if hasattr(record, "request_id"):
+                    json_records.append(record.__dict__)
+    assert json_records, "Should emit JSON structured log"
+    rec = json_records[-1]
+    # Verify required fields
+    for field in ("request_id", "method", "path", "status", "latency_ms"):
+        assert field in rec or hasattr(caplog.records[-1], field), f"Missing {field} in log"
+
+
+def test_request_logging_redacts_sensitive_query_params(monkeypatch, caplog):
+    monkeypatch.setenv("TESTING", "0")
+    monkeypatch.setenv("CORS_ORIGINS", "https://app.example.com")
+    from fastapi.testclient import TestClient
+
+    app = create_app()
+
+    @app.get("/query-check")
+    async def query_check():
+        return {"ok": True}
+
+    caplog.set_level("INFO", logger="expense_tracker.request")
+    client = TestClient(app)
+    client.get("/query-check?password=supersecret&token=abc123&safe=value")
+
+    # Only check our structured logger, not httpx access logs
+    request_logs = [r for r in caplog.records if r.name == "expense_tracker.request"]
+    assert request_logs, "Expected at least one request log"
+    # Check structured fields, not getMessage (which is just "request completed")
+    for record in request_logs:
+        path = getattr(record, "path", "")
+        assert "supersecret" not in path
+        assert "supersecret" not in record.getMessage()
+        assert "abc123" not in path
+        # Safe param should still appear redacted correctly
+        assert "safe" in path
+        assert "password=[REDACTED]" in path
+        assert "token=[REDACTED]" in path

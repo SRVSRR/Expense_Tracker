@@ -5,7 +5,7 @@ Hardening the API for production deployment. Focus on reliability, observability
 
 ## Status: In Progress (partial)
 
-Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, per-endpoint rate limits are enforced with user-or-IP buckets, and CORS is env-driven and fails fast in production. Remaining P3 work (CI, monitoring, backups) is unscoped.
+Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, per-endpoint rate limits are enforced with user-or-IP buckets, CORS is env-driven and fails fast in production, and structured JSON logging with correlation IDs is active. Remaining P3 work (CI, monitoring, backups) is unscoped.
 
 ---
 
@@ -54,7 +54,7 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 ---
 
 ### 3. Structured Logging
-**Status**: Not Started  
+**Status**: Complete — JSON logs with correlation IDs, redaction, and request metadata via `app/utils/logging.py` + `app/middleware/logging.py`; wired in `app/factory.py`.
 **Priority**: High
 
 **Requirements:**
@@ -65,9 +65,9 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 - Redact sensitive fields (tokens, passwords)
 
 **Files:**
-- `backend/app/utils/logging.py` (new)
-- `backend/main.py` — Configure logging
-- `backend/app/middleware/logging.py` (new middleware)
+- `backend/app/utils/logging.py` — JSONFormatter, redaction helpers, context vars (`request_id_var`, `request_user_var`), `setup_logging()`
+- `backend/app/middleware/logging.py` — `logging_middleware` (X-Request-ID generation/propagation, timing, user_id extraction from Bearer `sub`, redacted path, adds `X-Request-ID` to response, emits structured `request completed` log)
+- `backend/app/factory.py` — calls `setup_logging()` at import and wires `logging_middleware` via `@app.middleware("http")`
 
 **Output Format:**
 ```json
@@ -79,9 +79,15 @@ Parts are complete or underway independent of production hardening: Supabase Aut
   "method": "POST",
   "path": "/api/transactions/",
   "status": 201,
-  "latency_ms": 45
+  "latency_ms": 45,
+  "service": "expense-tracker"
 }
 ```
+
+**Acceptance:**
+- Every request emits a structured JSON log (`expense_tracker.request` logger, `request completed` with `request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`) — verified via `TestClient` and `caplog`
+- No secrets appear in logs: `Authorization` header values and sensitive query params (`password`, `token`, `secret`) are redacted; `X-Request-ID` header propagated
+- Logs include `request_id`, `user_id`, `status`, `latency_ms`, `service` context — verified via 4 tests in `tests/test_factory.py` (107 total pass)
 
 ---
 
@@ -251,7 +257,7 @@ jobs:
 |------|----------|
 | 1. SECRET_KEY/CORS | 0.5 day ✅ done (2026-09-18) |
 | 2. Rate Limiting | 1 day ✅ done (2026-09-18) |
-| 3. Structured Logging | 1-2 days |
+| 3. Structured Logging | 1-2 days ✅ done (2026-09-19) |
 | 4. Error Monitoring | 1 day |
 | 5. Backups/PITR | 1 day |
 | 6. Health Checks | 0.5 day |

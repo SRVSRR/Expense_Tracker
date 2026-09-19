@@ -68,7 +68,7 @@ correctness over frontend UI concerns.
 - Registration was verified on 2026-09-06 with a live `201 Created` response;
   user responses must continue to exclude password fields and password hashes.
 
-## Current status (as of 2026-09-18)
+## Current status (as of 2026-09-19)
 
 **Phases 1–6: COMPLETE (with API + caching + P0 test coverage)**
 
@@ -110,11 +110,12 @@ Completed:
 - All routes document standard error responses with examples via the shared `app/utils/openapi.py` module
 - All 95 tests pass. Remaining explicit debt: `with_db_transaction` not yet used in route business logic, and no circuit breaker is implemented.
 
-**P3 (Production hardening): IN PROGRESS — items 1 (SECRET_KEY/CORS) and 2 (rate limiting) COMPLETE**
+**P3 (Production hardening): IN PROGRESS — items 1 (SECRET_KEY/CORS), 2 (rate limiting), and 3 (structured logging) COMPLETE**
 - CORS is `CORS_ORIGINS`-driven with fail-fast: wildcards and unset values raise at startup outside `TESTING=1`
 - Per-endpoint rate-limit tiers (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour) with user-or-IP buckets; `429` + `Retry-After` served and documented
+- Structured JSON logging via `app/utils/logging.py` + `app/middleware/logging.py` with `X-Request-ID` correlation IDs, timing, and redaction; every request emits `request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`
 - `SECRET_KEY` is documented as test-only convenience; Supabase Auth signs production tokens
-- 103 tests pass. Remaining P3 items: structured logging, CI, monitoring/backups.
+- 107 tests pass. Remaining P3 items: CI, monitoring/backups.
 
 **Deployment and mobile handoff**: The FastAPI backend is deployed on Render with
 Supabase Auth as the production provider. Render uses `/health` as the health-check
@@ -303,10 +304,11 @@ future phases.
 | 2026-09-17 | Docs + agent guidance update | `docs/INFRASTRUCTURE.md` step 5 now documents that migrations run automatically at boot (lifespan → `alembic upgrade head`, `backend/alembic.ini`, `env.py` sync-driver handling) instead of a manual command. `AGENTS.md` gained an "Ask before acting; do not improvise" section requiring the agent to stop and ask the user whenever intent/scope is unclear. Documentation-only; no application-code changes. |
 | 2026-09-18 | P3 item 1: SECRET_KEY/CORS hardening | Added `get_cors_origins()` to `backend/app/factory.py` — CORS loads from `CORS_ORIGINS` (comma-separated allowlist); wildcard sequences and unset values raise `RuntimeError` at startup unless `TESTING=1`. Added 5 CORS tests in `tests/test_factory.py`; updated `.env.example`, `README.md`, `SECURITY.md`, `docs/INFRASTRUCTURE.md`, `docs/phases/P3_PHASE.md` (item 1 complete), and `TODO.md`. 95 tests pass. |
 | 2026-09-18 | P3 item 2: per-endpoint rate limiting | Central tiers in `app/utils/rate_limit.py` (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour) with user-or-IP buckets (`user_or_ip_key` reads Bearer `sub` for bucketing only, enforced post-auth); applied `@limiter.limit` + `request: Request` + `ERROR_429` to all API routes; fixed stale served `/docs` rate-limit table. Added `tests/test_rate_limit.py` (8 tests). Updated `README.md`, `SECURITY.md`, `docs/phases/P3_PHASE.md` (item 2 complete), `TODO.md`. 103 tests pass. |
+| 2026-09-19 | P3 item 3: structured logging | Added `app/utils/logging.py` (JSONFormatter, redaction, `request_id_var` context) and `app/middleware/logging.py` (`logging_middleware` with `X-Request-ID` correlation IDs, timing, `user_id` from Bearer `sub`, redacted query params, `request completed` JSON logs); wired in `app/factory.py` via `setup_logging()` and `@app.middleware`. Added 4 logging tests in `tests/test_factory.py` (request ID header, redaction, JSON fields). 107 tests pass. |
 
 ## What to do next (priority order)
 
-1. **P3: Production hardening** — Items 1 (SECRET_KEY/CORS) and 2 (rate limiting) complete. Remaining: structured logging, CI, monitoring/backups.
+1. **P3: Production hardening** — Items 1 (SECRET_KEY/CORS), 2 (rate limiting), and 3 (structured logging) complete. Remaining: CI, monitoring/backups.
 2. **Mobile integration** — Configure the mobile repository with the final Render API URL (`https://expense-tracker-uwrp.onrender.com`) and Supabase project settings
 3. **Documented technical debt** — Wire `with_db_transaction` into route business logic (startup/transaction rollbacks) and implement a circuit breaker for external service calls
 
@@ -360,6 +362,9 @@ future phases.
         rate_limit.py             Rate-limit configuration
         supabase_auth.py          Supabase JWKS verification
         openapi.py                Shared OpenAPI error response blocks
+        logging.py                JSON formatter, redaction, request_id context
+      /middleware
+        logging.py                Request logging with correlation IDs and structured JSON
     /migrations                   Alembic migration config + versions
     /alembic.ini                  Alembic configuration
   /docs/case-studies              DS/DE case studies and reading guide

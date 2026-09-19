@@ -13,6 +13,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
 from app.db.database import engine
+from app.middleware.logging import logging_middleware
 from app.routes import (
     auth,
     accounts,
@@ -24,9 +25,11 @@ from app.routes import (
     transactions,
 )
 from app.utils.exceptions import register_exception_handlers
+from app.utils.logging import setup_logging
 from app.utils.rate_limit import limiter
 
-logging.basicConfig(level=logging.INFO)
+# Configure JSON structured logging at import time
+setup_logging()
 logger = logging.getLogger("expense_tracker")
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -191,11 +194,8 @@ Breaking changes may occur without notice. API stability not guaranteed until v1
     )
 
     @app.middleware("http")
-    async def log_requests(request: Request, call_next):
-        logger.info(f">>> {request.method} {request.url.path}")
-        response = await call_next(request)
-        logger.info(f"<<< {response.status_code}")
-        return response
+    async def _request_logging_middleware(request: Request, call_next):
+        return await logging_middleware(request, call_next)
 
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

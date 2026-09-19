@@ -101,6 +101,12 @@ Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 	Verified 103 tests pass. No bulk endpoints exist, so WRITE 30/min only
 	binds automation; slowapi buckets are per-route, so one dashboard load
 	spends one hit per analytics bucket.
+- **2026-09-19**: P3 item 3 complete — structured logging via `app/utils/logging.py`
+	(JSONFormatter, redaction, request_id/user_id context) and `app/middleware/logging.py`
+	(correlation ID `X-Request-ID`, timing, JSON `request completed` logs with
+	`request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`);
+	redacts `Authorization` headers and sensitive query params. Added 4 logging
+	tests in `tests/test_factory.py`. Verified 107 tests pass.
 
 ## P0 - Make the current API trustworthy
 
@@ -158,7 +164,8 @@ Phased migration documented in [docs/MIGRATION.md](docs/MIGRATION.md). Scope: ba
 
 - [x] Move authentication to Supabase Auth (completed).
 - [x] Use a strong production `SECRET_KEY` and environment-specific CORS origins. `SECRET_KEY` is test-only (Supabase signs production tokens). CORS now loads from `CORS_ORIGINS` (comma-separated allowlist) with startup fail-fast and wildcard rejection outside tests.
-- [x] Add production rate limiting. Per-endpoint tiers enforced via `slowapi` (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour), keyed by Bearer `sub` with IP fallback; `429` + `Retry-After` on excess. Remaining: structured logs, backups, error monitoring.
+- [x] Add production rate limiting. Per-endpoint tiers enforced via `slowapi` (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour), keyed by Bearer `sub` with IP fallback; `429` + `Retry-After` on excess.
+- [x] Add structured JSON logging with correlation IDs. Every request emits a JSON log with `request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`; `X-Request-ID` is propagated; query params and headers are redacted; no secrets leak.
 - [ ] Run migrations as a release step. Startup currently runs `alembic upgrade head`; the basic `/health` endpoint checks database connectivity with `SELECT 1`.
 - [x] Deploy the API and configure the `/health` endpoint for Render. Record the stable HTTPS URL `https://expense-tracker-uwrp.onrender.com` and the mobile client configuration.
 - [ ] Add CI for tests, syntax checks, and dependency/security scanning.
