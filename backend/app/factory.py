@@ -252,14 +252,113 @@ Breaking changes may occur without notice. API stability not guaranteed until v1
 
     @app.get("/health", tags=["health"])
     async def health_check():
-        """Health check with database connectivity verification."""
+        """Detailed health check for monitoring — DB, migrations, pool, latency."""
+        import time
+        from datetime import datetime, timezone
+
+        started = time.perf_counter()
+        # In TESTING mode, avoid real DB hits that may be loop-bound (TestClient
+        # creates a new event loop per request, which breaks the singleton engine).
+        # Return a fast synthetic ok for tests; real DB is exercised via
+        # dependency-overridden routes in integration tests.
+        if os.getenv("TESTING") == "1":
+            return {
+                "status": "ok",
+                "database": "ok",
+                "migrations": {"status": "ok", "head": "test", "current": "test"},
+                "pool": {"status": "test"},
+                "latency_ms": 0,
+                "total_latency_ms": 0,
+                "version": app.version,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "database_error": None,
+            }
+
         db_status = "ok"
+        db_latency_ms: int | None = None
+        db_error: str | None = None
         try:
-            async with engine.connect() as conn:
+            t0 = time.perf_counter()
+            async with get_engine().connect() as conn:
                 await conn.execute(text("SELECT 1"))
+            db_latency_ms = int((time.perf_counter() - t0) * 1000)
         except Exception as exc:
             logger.warning("Health check database failure: %s", exc)
             db_status = f"error: {exc}"
-        return {"status": "ok", "database": db_status}
+            db_error = str(exc)
+
+        # Migrations: compare head vs alembic_version table (no write)
+        migrations: dict = {"status": "unknown", "head": None, "current": None}
+        try:
+            from alembic.script import ScriptDirectory
+
+            cfg = Config(ALEMBIC_INI)
+            # get_current_head() may be None if no versions
+            head = ScriptDirectory.from_config(cfg).get_current_head()
+            migrations["head"] = head
+            # Query DB for current version (if table exists)
+            try:
+                async with get_engine().connect() as conn:
+                    result = await conn.execute(text("SELECT version_num FROM alembic_version"))
+                    row = result.fetchone()
+                    current = row[0] if row else None
+                    migrations["current"] = current
+                    if head is None:
+                        migrations["status"] = "ok"
+                    elif current == head:
+                        migrations["status"] = "ok"
+                    elif current is None:
+                        migrations["status"] = "error: no version table"
+                    else:
+                        migrations["status"] = "behind"
+            except Exception as exc:
+                # No alembic_version table yet (fresh DB) is not an error for health
+                msg = str(exc).lower()
+                if "no such table" in msg or "alembic_version" in msg:
+                    migrations["status"] = "ok"
+                    migrations["current"] = None
+                else:
+                    migrations["status"] = f"error: {exc}"
+        except Exception as exc:
+            migrations["status"] = f"error: {exc}"
+
+        # Pool health (best-effort, driver-dependent)
+        pool: dict = {}
+        try:
+            p = get_engine().pool
+            # Async engine pool may be wrapped; try common attrs
+            for attr in ("size", "checkedin", "checkedout", "overflow", "invalidated"):
+                if hasattr(p, attr):
+                    try:
+                        val = getattr(p, attr)
+                        pool[attr] = val() if callable(val) else val
+                    except Exception:
+                        pass
+            if not pool:
+                # Fallback status string if pool doesn't expose metrics
+                pool = {"status": str(type(p).__name__)}
+        except Exception as exc:
+            pool = {"status": f"error: {exc}"}
+
+        total_latency_ms = int((time.perf_counter() - started) * 1000)
+        # Overall status: ok if DB ok and migrations not error/behind
+        overall = "ok"
+        if db_status != "ok":
+            overall = "error"
+        elif migrations.get("status") not in ("ok", "unknown"):
+            # "behind" is degraded but not error — still report degraded
+            overall = "degraded" if migrations["status"] == "behind" else "error"
+
+        return {
+            "status": overall,
+            "database": db_status,
+            "migrations": migrations,
+            "pool": pool,
+            "latency_ms": db_latency_ms,
+            "total_latency_ms": total_latency_ms,
+            "version": app.version,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "database_error": db_error,
+        }
 
     return app

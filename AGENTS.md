@@ -68,7 +68,7 @@ correctness over frontend UI concerns.
 - Registration was verified on 2026-09-06 with a live `201 Created` response;
   user responses must continue to exclude password fields and password hashes.
 
-## Current status (as of 2026-09-19)
+## Current status (as of 2026-09-20)
 
 **Phases 1–6: COMPLETE (with API + caching + P0 test coverage)**
 
@@ -110,7 +110,7 @@ Completed:
 - All routes document standard error responses with examples via the shared `app/utils/openapi.py` module
 - All 107 tests pass. Documented debt from P1 is now complete: `with_db_transaction`/`db_transaction` atomically wraps `create_transaction` (balance + recurring rule) and Supabase JWKS fetch is protected by a circuit breaker.
 
-**P3 (Production hardening): IN PROGRESS — items 1 (SECRET_KEY/CORS), 2 (rate limiting), 3 (structured logging), 4 (error monitoring), 5 (backups), and 7/8 (CI/security) COMPLETE; documented debt COMPLETE**
+**P3 (Production hardening): IN PROGRESS — items 1 (SECRET_KEY/CORS), 2 (rate limiting), 3 (structured logging), 4 (error monitoring), 5 (backups), 6 (health checks), and 7/8 (CI/security) COMPLETE; documented debt COMPLETE**
 - CORS is `CORS_ORIGINS`-driven with fail-fast: wildcards and unset values raise at startup outside `TESTING=1`
 - Per-endpoint rate-limit tiers (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour) with user-or-IP buckets; `429` + `Retry-After` served and documented
 - Structured JSON logging via `app/utils/logging.py` + `app/middleware/logging.py` with `X-Request-ID` correlation IDs, timing, and redaction; every request emits `request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`
@@ -118,8 +118,9 @@ Completed:
 - `with_db_transaction`/`db_transaction` atomic for `POST /api/transactions/` (balance + recurring rule) with flush-aware `prediction_cache` invalidation
 - Daily logical backups via `.github/workflows/backup.yml` (02:00 UTC, masked `DATABASE_URL`, `pg_dump -Fc` + plain SQL, 7-day artifact) + `docs/ops/RESTORE.md` + `backend/scripts/verify_backup.py`; Free-tier PITR unavailable (Dashboard snapshots view-only)
 - CI via `.github/workflows/ci.yml` (test: `TESTING=1` + `compileall`; lint: `ruff` advisory; security: `pip-audit` + `bandit` advisory) + Dependabot weekly
+- `/health` now detailed JSON (`status`, `database`+`latency_ms`, `migrations` head vs `alembic_version`, `pool` stats, `version`, `timestamp`); public for Render monitoring
 - `SECRET_KEY` is documented as test-only convenience; Supabase Auth signs production tokens
-- 119 tests pass. Remaining P3 items: health-check enhancements (optional), deployment/HTTPS/versioning (deferred — Render handles TLS).
+- 121 tests pass. Remaining P3 items: deployment/HTTPS/versioning (deferred — Render handles TLS).
 
 **Deployment and mobile handoff**: The FastAPI backend is deployed on Render with
 Supabase Auth as the production provider. Render uses `/health` as the health-check
@@ -312,12 +313,13 @@ future phases.
 | 2026-09-19 | P3 item 4 + documented debt | Added `app/utils/sentry.py` (optional `SENTRY_DSN`, disabled in `TESTING=1`, `capture_user_context`), wired in `app/factory.py` lifespan + `app/middleware/logging.py` + `app/utils/__init__.py:get_current_user`; added `app/utils/circuit_breaker.py` (3 failures → OPEN 60s, 503 `EXTERNAL_SERVICE_UNAVAILABLE`) wrapping `app/utils/supabase_auth.py` JWKS fetch with `_fetch_jwks` + `get_jwks` lock; added `db_transaction`/`with_db_transaction` atomic wrapper and flush-aware `prediction_cache` invalidation, wrapped `POST /api/transactions/` (balance + recurring rule). Added `tests/test_sentry.py` (3), `tests/test_circuit_breaker.py` (5), `tests/test_with_db_transaction.py` (3). 119 tests pass. |
 | 2026-09-19 | P3 item 5: Free-tier backups | Added `.github/workflows/backup.yml` (02:00 UTC, masked `DATABASE_URL`, `pg_dump -Fc` + plain SQL, 7-day artifact) + `docs/ops/RESTORE.md` + `backend/scripts/verify_backup.py`; Free-tier PITR unavailable (Dashboard snapshots view-only). Updated `.gitignore` (backup-*.dump/sql, backend/backups/), `docs/INFRASTRUCTURE.md` Backups section, `TODO.md` + `AGENTS.md` checklists. No new tests; 119 tests still passing, workflow secrets never logged. |
 | 2026-09-19 | P3 item 7/8: CI + security | Added `.github/workflows/ci.yml` (3 jobs: `test` with `TESTING=1` + `compileall` (119 tests), `lint` with `ruff` advisory, `security` with `pip-audit` + `bandit` advisory; `permissions: contents: read`, no secrets) + `.github/dependabot.yml` (weekly `pip` + `github-actions`). Updated `docs/phases/P3_PHASE.md` (7/8 complete), `TODO.md`. 119 tests still passing. |
+| 2026-09-20 | P3 item 6: health checks | Extended `/health` in `backend/app/factory.py` to detailed JSON (`status`, `database`+`latency_ms`, `migrations` via `ScriptDirectory` + `alembic_version`, `pool` stats, `version`, `timestamp`); public, `TESTING=1` synthetic fast path; added 2 tests in `tests/test_factory.py` (detailed JSON, `X-Request-ID`). 121 tests passing. |
 | 2026-09-19 | Fix CI import-time DATABASE_URL | `backend/app/db/database.py` now lazy — no top-level `DATABASE_URL` check or `create_async_engine` at import; `get_database_url()`/`get_engine()` + `_LazyEngineProxy`/`_LazySessionLocalProxy` defer creation until use, `TESTING=1` returns `sqlite+aiosqlite:///:memory:` dummy so `from main import app` no longer needs env. `app/factory.py:66` lifespan validates `DATABASE_URL` and inits engine (fail-fast in prod, skips validation+migrations when `TESTING=1`), and disposes via `dispose_engine()`. Verified `DATABASE_URL="" TESTING=1 python -m pytest backend/tests -q` → 119 passing (previously `RuntimeError` at `conftest.py:23` → `database.py:10`). |
 | 2026-09-19 | Dependabot | Merged 8 PRs: `aiosqlite 0.22.1`, `alembic 1.20.0`, `scikit-learn 1.9.1`, `httpx 0.28.1`, `python-multipart 0.0.32`, `checkout@v7`, `setup-python@v7`, `upload-artifact@v7` in one combined `chore` commit (`bca594a`) to avoid sequential `requirements.txt` conflicts. Verified `pip install` new versions + `TESTING=1 pytest` still 119 passing, `compileall OK`. Updated `docs/phases/P3_PHASE.md` (`setup-python@v5` → `v7`). |
 
 ## What to do next (priority order)
 
-1. **P3: Production hardening** — Items 1 (SECRET_KEY/CORS), 2 (rate limiting), 3 (structured logging), 4 (error monitoring), 5 (backups), and 7/8 (CI/security) COMPLETE; documented debt COMPLETE. Remaining: health-check enhancements (optional), deployment/HTTPS/versioning (deferred — Render handles TLS).
+1. **P3: Production hardening** — Items 1 (SECRET_KEY/CORS), 2 (rate limiting), 3 (structured logging), 4 (error monitoring), 5 (backups), 6 (health checks), and 7/8 (CI/security) COMPLETE; documented debt COMPLETE. Remaining: deployment/HTTPS/versioning (deferred — Render handles TLS).
 2. **Mobile integration** — Configure the mobile repository with the final Render API URL (`https://expense-tracker-uwrp.onrender.com`) and Supabase project settings
 
 ## Conventions the agent must follow throughout

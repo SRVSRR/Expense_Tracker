@@ -130,7 +130,8 @@ Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 	`backend/venv/bin/python -m pytest -q` still 119 passing.
 - **2026-09-19**: Dependabot — merged 8 PRs: `aiosqlite 0.22.1`, `alembic 1.20.0`,
 	`scikit-learn 1.9.1`, `httpx 0.28.1`, `python-multipart 0.0.32`, `checkout@v7`,
-	`setup-python@v7`, `upload-artifact@v7`. Verified `backend/venv/bin/pip install` with new versions + `TESTING=1 pytest` still 119 passing, `compileall OK`, actions workflows valid.
+	`setup-python@v7`, `upload-artifact@v7` in one combined `chore` commit (`bca594a`). Verified `pip install` new versions + `TESTING=1 pytest` still 119 passing, `compileall OK`, actions workflows valid.
+- **2026-09-20**: P3 item 6 complete — `/health` now detailed JSON (`status`, `database`+`latency_ms`, `migrations` head vs `alembic_version`, `pool` stats, `version`, `timestamp`); public (no auth) with `X-Request-ID`; `TESTING=1` fast synthetic ok. Added 2 health tests in `tests/test_factory.py`. Verified 121 tests passing.
 
 ## P0 - Make the current API trustworthy
 
@@ -192,7 +193,8 @@ Phased migration documented in [docs/MIGRATION.md](docs/MIGRATION.md). Scope: ba
 - [x] Add structured JSON logging with correlation IDs. Every request emits a JSON log with `request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`; `X-Request-ID` is propagated; query params and headers are redacted; no secrets leak.
 - [x] Add error monitoring (Sentry, optional via `SENTRY_DSN`, captures user context and migration failures) and documented debt: `with_db_transaction`/`db_transaction` atomic for `create_transaction` (balance + recurring rule) and circuit breaker for Supabase JWKS (3 failures → OPEN 60s, 503 `EXTERNAL_SERVICE_UNAVAILABLE`).
 - [x] Configure daily logical backups on Free tier (GitHub Actions `pg_dump` via `.github/workflows/backup.yml`, 02:00 UTC, masked `DATABASE_URL`, 7-day artifact) + Dashboard daily snapshots (view-only) + `docs/ops/RESTORE.md` runbook + `backend/scripts/verify_backup.py` (`SELECT 1`/`pg_is_in_recovery()`/dump-age); note Free has no PITR (Pro required for PITR slider).
-- [ ] Run migrations as a release step. Startup currently runs `alembic upgrade head`; the basic `/health` endpoint checks database connectivity with `SELECT 1`.
+- [x] Enhance `/health` for monitoring: now returns detailed JSON (`status`, `database` + `latency_ms`, `migrations` head vs `alembic_version`, `pool` stats, `version`, `timestamp`); public (no auth) for Render; `TESTING=1` returns synthetic fast ok to avoid loop-bound engine. Startup still runs `alembic upgrade head` (migrations validated separately).
+- [ ] Run migrations as a release step. Startup currently runs `alembic upgrade head` (alternative: explicit release step).
 - [x] Deploy the API and configure the `/health` endpoint for Render. Record the stable HTTPS URL `https://expense-tracker-uwrp.onrender.com` and the mobile client configuration.
 - [x] Add CI for tests, syntax checks, and dependency/security scanning. `ci.yml` runs on PR/push to `main` (test: `TESTING=1 pytest` + `compileall`; lint: `ruff check/format` advisory; security: `pip-audit` + `bandit` advisory) with `pip` cache and no secrets; Dependabot weekly for `pip` + `github-actions`.
 

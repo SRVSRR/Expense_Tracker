@@ -5,7 +5,7 @@ Hardening the API for production deployment. Focus on reliability, observability
 
 ## Status: In Progress (partial)
 
-Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, per-endpoint rate limits are enforced with user-or-IP buckets, CORS is env-driven and fails fast in production, structured JSON logging with correlation IDs is active, error monitoring (Sentry) is optional via `SENTRY_DSN`, and daily `pg_dump` backups run via GitHub Actions (Free-tier, 7-day artifact/Dialog dashboard). Remaining P3 work (CI) is unscoped. Documented debt (atomic `with_db_transaction` + Supabase JWKS circuit breaker) is complete.
+Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, per-endpoint rate limits are enforced with user-or-IP buckets, CORS is env-driven and fails fast in production, structured JSON logging with correlation IDs is active, error monitoring (Sentry) is optional via `SENTRY_DSN`, daily `pg_dump` backups run via GitHub Actions (Free-tier, 7-day artifact), and `/health` now reports DB latency, migrations, pool, and version. Remaining P3 work is optional (deployment/HTTPS/versioning — Render handles TLS). Documented debt (atomic `with_db_transaction` + Supabase JWKS circuit breaker) is complete.
 
 ---
 
@@ -159,20 +159,17 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 ---
 
 ### 6. Database Health Check
-**Status**: Partial (health endpoint exists)  
+**Status**: Complete — `/health` now returns detailed JSON with DB latency, migrations, pool, version, and timestamp; public (no auth) for Render monitoring.
 **Priority**: Medium
 
 **Current:**
-- `/health` endpoint checks DB connectivity
-
-**Enhancements:**
-- Check migration status
-- Check connection pool health
-- Check replication lag (if applicable)
-- Return detailed status for monitoring
+- `/health` endpoint checks DB connectivity with `SELECT 1` and measures `latency_ms`
+- Compares `alembic_version` table vs head via `ScriptDirectory` (no write)
+- Reports pool stats (`size`, `checkedin`, `checkedout`, `overflow`) best-effort
+- Returns `{"status","database","migrations":{"head","current","status"},"pool","latency_ms","total_latency_ms","version","timestamp"}`; overall `degraded` if migrations behind, `error` if DB down; `TESTING=1` returns synthetic fast `ok` to avoid loop-bound engine
 
 **Files:**
-- `backend/app/routes/health.py` (new) or extend `main.py`
+- `backend/app/factory.py` — `health_check()` now detailed (uses `get_engine()`, `Config(ALEMBIC_INI)`, `ScriptDirectory`, redacted errors)
 
 ---
 
@@ -286,7 +283,7 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 | 3. Structured Logging | 1-2 days ✅ done (2026-09-19) |
 | 4. Error Monitoring | 1 day ✅ done (2026-09-19) |
 | 5. Backups/PITR | 1 day ✅ done (2026-09-19, Free-tier pg_dump) |
-| 6. Health Checks | 0.5 day |
+| 6. Health Checks | 0.5 day ✅ done (2026-09-20) |
 | 7. CI/CD Pipeline | 2-3 days ✅ done (2026-09-19, ci.yml) |
 | 8. Security Scanning | 0.5 day ✅ done via ci.yml security job |
 | 9. Deployment | 2-3 days |

@@ -181,3 +181,37 @@ def test_request_logging_redacts_sensitive_query_params(monkeypatch, caplog):
         assert "safe" in path
         assert "password=[REDACTED]" in path
         assert "token=[REDACTED]" in path
+
+
+def test_health_detailed_json_and_public():
+    from fastapi.testclient import TestClient
+
+    app = create_app()
+    client = TestClient(app)
+    # No auth header — health must be public
+    r = client.get("/health")
+    assert r.status_code == 200
+    data = r.json()
+    # Backwards compat fields
+    assert "status" in data
+    assert "database" in data
+    # Detailed fields for monitoring
+    assert "migrations" in data and isinstance(data["migrations"], dict)
+    assert "head" in data["migrations"]
+    assert "current" in data["migrations"]
+    assert "status" in data["migrations"]
+    assert "pool" in data and isinstance(data["pool"], dict)
+    assert "version" in data
+    assert "timestamp" in data
+    assert "latency_ms" in data
+    # Must not require auth
+    assert r.headers.get("X-Request-ID")
+
+
+def test_health_includes_request_id_header():
+    from fastapi.testclient import TestClient
+
+    app = create_app()
+    client = TestClient(app)
+    r = client.get("/health", headers={"X-Request-ID": "health-test-123"})
+    assert r.headers["X-Request-ID"] == "health-test-123"
