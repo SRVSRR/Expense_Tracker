@@ -155,7 +155,7 @@ Phased migration documented in [docs/MIGRATION.md](docs/MIGRATION.md). Scope: ba
 
 - [x] Define the recurring transaction request contract and automatically create a recurring rule when a transaction is marked recurring. Implemented conditionally: `TransactionCreate` carries the recurring fields, and `create_transaction` creates a `RecurringRule` only when `is_recurring` plus pattern, frequency, and expected date are supplied.
 - [x] Validate recurring patterns and positive frequencies with Pydantic constraints. Implemented: `RecurringPattern` enum, `frequency >= 1`, and `expected_amount > 0`. Future-date validation for `expected_date` is now applied (past dates return 422), and `biweekly`/`quarterly` occurrence expansion is supported in `/api/recurring/upcoming`.
-- [x] Add explicit error handling and rollback behavior around migration and database failures. Route-level 404s use the shared `{code, message, details}` exception envelope; `with_retry` protects read-heavy analytics computations against transient DB errors; startup logs and re-raises a clear error when Alembic migrations fail. `with_db_transaction` is not yet used in route business logic and no circuit breaker exists (both documented as explicit debt).
+- [x] Add explicit error handling and rollback behavior around migration and database failures. Route-level 404s use the shared `{code, message, details}` exception envelope; `with_retry` protects read-heavy analytics computations against transient DB errors; startup logs and re-raises a clear error when Alembic migrations fail. `with_db_transaction`/`db_transaction` now atomically wraps `create_transaction` (balance + recurring rule) and Supabase JWKS fetch is protected by a circuit breaker (documented debt complete in P3).
 - [x] Reconcile the cache documentation with the implemented `budget_analysis` cache type. The application cache module documents and implements both 7-day budget cache types; `README.md` and `docs/INFRASTRUCTURE.md` are also updated in this pass.
 - [x] Make the app factory and `main.py` use the same router and lifespan configuration. `backend/app/factory.py` now creates the full app (routers, CORS, request-logging middleware, `/`, `/health`, exception handlers, and the migration-running lifespan), and `main.py` is a thin entrypoint that only calls `create_app()`.
 - [x] Add OpenAPI examples and response schemas for forecast, budget, recurring, and categorization endpoints. All routes document success and standard error responses (400/401/404/422/429/500) with examples via the shared `backend/app/utils/openapi.py` module; response schemas carry `json_schema_extra` examples.
@@ -178,6 +178,25 @@ Phased migration documented in [docs/MIGRATION.md](docs/MIGRATION.md). Scope: ba
 - [ ] Run migrations as a release step. Startup currently runs `alembic upgrade head`; the basic `/health` endpoint checks database connectivity with `SELECT 1`.
 - [x] Deploy the API and configure the `/health` endpoint for Render. Record the stable HTTPS URL `https://expense-tracker-uwrp.onrender.com` and the mobile client configuration.
 - [ ] Add CI for tests, syntax checks, and dependency/security scanning.
+
+## External Application Dependencies
+
+Switch these external apps/secrets only when the roadmap requires it (e.g., rotating credentials, new Supabase project, enabling Sentry for P3 monitoring, or pointing mobile/Render to a new environment). Check the box when the switch is done and re-verify `/health` + `SELECT 1` + a Bearer-token request.
+
+### Supabase (Auth + PostgreSQL — required at runtime)
+- [ ] Supabase project exists (`<project-ref>.supabase.co`). Supabase is the sole runtime DB/Auth provider; local SQLite is test-only (`backend/tests/conftest.py:14` sets `TESTING=1`).
+- [ ] `DATABASE_URL` — Transaction pooler on **port 6543** with `postgresql+asyncpg://` driver (`docs/INFRASTRUCTURE.md:37`, `backend/app/db/database.py:17` auto-sets `statement_cache_size=0`). Source: Supabase Dashboard → Project Settings → Database → Connection string → Transaction pooler. Must be stored in local `backend/.env` and in Render → Environment (never committed). URL-encode special chars in password; a `password authentication failed` is a secret/encoding problem, not an engine config problem.
+- [ ] `SUPABASE_JWKS_URL` = `https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json` and `SUPABASE_ISSUER` = `https://<project-ref>.supabase.co/auth/v1`. Source: Supabase Dashboard → Project Settings → API. Verified via `app/utils/supabase_auth.py:20` (JWKS fetch/caching, RS256, circuit breaker `app/utils/circuit_breaker.py:1`). Missing value fails startup with `RuntimeError`.
+- [ ] Supabase `auth.users` schema accessible; Alembic migration `59062dbe3d50` creates `auth_user_id` UUID FKs to `auth.users.id` on 6 tables. `DATABASE_URL` must use a role with cross-schema FK grants.
+
+### Render (hosting — required for deploy)
+- [ ] Service configured: Build `pip install -r backend/requirements.txt`, Start `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`, Health path `/health` (`backend/app/factory.py:221` does `SELECT 1`). See `docs/INFRASTRUCTURE.md:55`.
+- [ ] Env vars set on Render → Environment: `DATABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`, `SECRET_KEY` (test-only, `backend/.env.example:3`), `CORS_ORIGINS` (comma-separated allowlist, fail-fast outside `TESTING=1`, `backend/app/factory.py:36`), `TESTING=0`, `ACCESS_TOKEN_EXPIRE_MINUTES`, plus optional `SENTRY_DSN`/`ENVIRONMENT` below.
+- [ ] Client base URL recorded: `https://expense-tracker-uwrp.onrender.com` (`TODO.md:65`). Mobile repo must use `@supabase/supabase-js` token as Bearer and target this URL, not localhost. Re-verify after any env change: `curl https://expense-tracker-uwrp.onrender.com/health` → `{"status":"ok","database":"ok"}` and `https://expense-tracker-uwrp.onrender.com/openapi.json` + a Bearer-token account/transaction round-trip.
+
+### Sentry (error monitoring — optional)
+- [ ] Sentry project created only when enabling P3 Item 4 production monitoring (otherwise disabled). When disabled or `TESTING=1`, `app/utils/sentry.py:1` no-ops and lifespan does not crash.
+- [ ] When enabling: `SENTRY_DSN` from Sentry → Project Settings → Client Keys (DSN), `ENVIRONMENT` (defaults to `production`), `SENTRY_TRACES_SAMPLE_RATE` (default `0.1`). Add to `backend/.env.example:15` template and to Render env, then redeploy. Verify by triggering a non-401 error (e.g., bad `account_id`) and checking Sentry Issues include `user_id` scope (`app/middleware/logging.py:1` + `app/utils/__init__.py:94`).
 
 ## Definition of done
 
