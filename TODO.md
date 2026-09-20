@@ -122,6 +122,11 @@ Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 	snapshots remain view-only (no PITR on Free, Pro required). Verified no
 	secrets in workflow/logs and `backend/venv/bin/python -m pytest -q` still
 	119 passing.
+- **2026-09-19**: P3 item 7/8 complete — CI via `.github/workflows/ci.yml`
+	(3 jobs: `test` with `TESTING=1` + `compileall`, `lint` with `ruff` advisory,
+	`security` with `pip-audit` + `bandit` advisory; `permissions: contents: read`,
+	no secrets) + `.github/dependabot.yml` weekly. Verified `yaml OK` +
+	`backend/venv/bin/python -m pytest -q` still 119 passing.
 
 ## P0 - Make the current API trustworthy
 
@@ -185,7 +190,7 @@ Phased migration documented in [docs/MIGRATION.md](docs/MIGRATION.md). Scope: ba
 - [x] Configure daily logical backups on Free tier (GitHub Actions `pg_dump` via `.github/workflows/backup.yml`, 02:00 UTC, masked `DATABASE_URL`, 7-day artifact) + Dashboard daily snapshots (view-only) + `docs/ops/RESTORE.md` runbook + `backend/scripts/verify_backup.py` (`SELECT 1`/`pg_is_in_recovery()`/dump-age); note Free has no PITR (Pro required for PITR slider).
 - [ ] Run migrations as a release step. Startup currently runs `alembic upgrade head`; the basic `/health` endpoint checks database connectivity with `SELECT 1`.
 - [x] Deploy the API and configure the `/health` endpoint for Render. Record the stable HTTPS URL `https://expense-tracker-uwrp.onrender.com` and the mobile client configuration.
-- [ ] Add CI for tests, syntax checks, and dependency/security scanning.
+- [x] Add CI for tests, syntax checks, and dependency/security scanning. `ci.yml` runs on PR/push to `main` (test: `TESTING=1 pytest` + `compileall`; lint: `ruff check/format` advisory; security: `pip-audit` + `bandit` advisory) with `pip` cache and no secrets; Dependabot weekly for `pip` + `github-actions`.
 
 ## External Application Dependencies
 

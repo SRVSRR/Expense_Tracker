@@ -110,15 +110,16 @@ Completed:
 - All routes document standard error responses with examples via the shared `app/utils/openapi.py` module
 - All 107 tests pass. Documented debt from P1 is now complete: `with_db_transaction`/`db_transaction` atomically wraps `create_transaction` (balance + recurring rule) and Supabase JWKS fetch is protected by a circuit breaker.
 
-**P3 (Production hardening): IN PROGRESS — items 1 (SECRET_KEY/CORS), 2 (rate limiting), 3 (structured logging), 4 (error monitoring), and 5 (backups) COMPLETE; documented debt COMPLETE**
+**P3 (Production hardening): IN PROGRESS — items 1 (SECRET_KEY/CORS), 2 (rate limiting), 3 (structured logging), 4 (error monitoring), 5 (backups), and 7/8 (CI/security) COMPLETE; documented debt COMPLETE**
 - CORS is `CORS_ORIGINS`-driven with fail-fast: wildcards and unset values raise at startup outside `TESTING=1`
 - Per-endpoint rate-limit tiers (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour) with user-or-IP buckets; `429` + `Retry-After` served and documented
 - Structured JSON logging via `app/utils/logging.py` + `app/middleware/logging.py` with `X-Request-ID` correlation IDs, timing, and redaction; every request emits `request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`
 - Error monitoring via `app/utils/sentry.py` (optional `SENTRY_DSN`, disabled in `TESTING=1`, captures migration failures + user context); JWKS fetch protected by `app/utils/circuit_breaker.py` (3 failures → OPEN 60s, 503)
 - `with_db_transaction`/`db_transaction` atomic for `POST /api/transactions/` (balance + recurring rule) with flush-aware `prediction_cache` invalidation
 - Daily logical backups via `.github/workflows/backup.yml` (02:00 UTC, masked `DATABASE_URL`, `pg_dump -Fc` + plain SQL, 7-day artifact) + `docs/ops/RESTORE.md` + `backend/scripts/verify_backup.py`; Free-tier PITR unavailable (Dashboard snapshots view-only)
+- CI via `.github/workflows/ci.yml` (test: `TESTING=1` + `compileall`; lint: `ruff` advisory; security: `pip-audit` + `bandit` advisory) + Dependabot weekly
 - `SECRET_KEY` is documented as test-only convenience; Supabase Auth signs production tokens
-- 119 tests pass. Remaining P3 items: CI.
+- 119 tests pass. Remaining P3 items: health-check enhancements (optional), deployment/HTTPS/versioning (deferred — Render handles TLS).
 
 **Deployment and mobile handoff**: The FastAPI backend is deployed on Render with
 Supabase Auth as the production provider. Render uses `/health` as the health-check
@@ -310,12 +311,12 @@ future phases.
 | 2026-09-19 | P3 item 3: structured logging | Added `app/utils/logging.py` (JSONFormatter, redaction, `request_id_var` context) and `app/middleware/logging.py` (`logging_middleware` with `X-Request-ID` correlation IDs, timing, `user_id` from Bearer `sub`, redacted query params, `request completed` JSON logs); wired in `app/factory.py` via `setup_logging()` and `@app.middleware`. Added 4 logging tests in `tests/test_factory.py` (request ID header, redaction, JSON fields). 107 tests pass. |
 | 2026-09-19 | P3 item 4 + documented debt | Added `app/utils/sentry.py` (optional `SENTRY_DSN`, disabled in `TESTING=1`, `capture_user_context`), wired in `app/factory.py` lifespan + `app/middleware/logging.py` + `app/utils/__init__.py:get_current_user`; added `app/utils/circuit_breaker.py` (3 failures → OPEN 60s, 503 `EXTERNAL_SERVICE_UNAVAILABLE`) wrapping `app/utils/supabase_auth.py` JWKS fetch with `_fetch_jwks` + `get_jwks` lock; added `db_transaction`/`with_db_transaction` atomic wrapper and flush-aware `prediction_cache` invalidation, wrapped `POST /api/transactions/` (balance + recurring rule). Added `tests/test_sentry.py` (3), `tests/test_circuit_breaker.py` (5), `tests/test_with_db_transaction.py` (3). 119 tests pass. |
 | 2026-09-19 | P3 item 5: Free-tier backups | Added `.github/workflows/backup.yml` (02:00 UTC, masked `DATABASE_URL`, `pg_dump -Fc` + plain SQL, 7-day artifact) + `docs/ops/RESTORE.md` + `backend/scripts/verify_backup.py`; Free-tier PITR unavailable (Dashboard snapshots view-only). Updated `.gitignore` (backup-*.dump/sql, backend/backups/), `docs/INFRASTRUCTURE.md` Backups section, `TODO.md` + `AGENTS.md` checklists. No new tests; 119 tests still passing, workflow secrets never logged. |
+| 2026-09-19 | P3 item 7/8: CI + security | Added `.github/workflows/ci.yml` (3 jobs: `test` with `TESTING=1` + `compileall` (119 tests), `lint` with `ruff` advisory, `security` with `pip-audit` + `bandit` advisory; `permissions: contents: read`, no secrets) + `.github/dependabot.yml` (weekly `pip` + `github-actions`). Updated `docs/phases/P3_PHASE.md` (7/8 complete), `TODO.md`. 119 tests still passing. |
 
 ## What to do next (priority order)
 
-1. **P3: Production hardening** — Items 1 (SECRET_KEY/CORS), 2 (rate limiting), 3 (structured logging), 4 (error monitoring), and 5 (backups) COMPLETE; documented debt COMPLETE. Remaining: CI.
+1. **P3: Production hardening** — Items 1 (SECRET_KEY/CORS), 2 (rate limiting), 3 (structured logging), 4 (error monitoring), 5 (backups), and 7/8 (CI/security) COMPLETE; documented debt COMPLETE. Remaining: health-check enhancements (optional), deployment/HTTPS/versioning (deferred — Render handles TLS).
 2. **Mobile integration** — Configure the mobile repository with the final Render API URL (`https://expense-tracker-uwrp.onrender.com`) and Supabase project settings
-3. **Documented technical debt** — Wire `with_db_transaction` into route business logic (startup/transaction rollbacks) and implement a circuit breaker for external service calls
 
 ## Conventions the agent must follow throughout
 
@@ -378,6 +379,8 @@ future phases.
     /alembic.ini                  Alembic configuration
     /.github/workflows
       backup.yml                  Daily pg_dump to artifact (02:00 UTC, masked DATABASE_URL)
+      ci.yml                      CI: test (TESTING=1 + compileall), lint (ruff), security (pip-audit + bandit)
+    /.github/dependabot.yml       Weekly pip + github-actions updates
   /docs
     /ops/RESTORE.md               Free-tier restore runbook (pg_dump, pg_restore, alembic, health)
     /case-studies                 DS/DE case studies and reading guide

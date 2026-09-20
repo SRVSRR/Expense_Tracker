@@ -1,0 +1,99 @@
+# CI — test + lint + security (no secrets, no DB)
+#
+# Triggers on PR and push to main; manual dispatch for ad-hoc runs.
+# Uses TESTING=1 so tests run against in-memory SQLite (no DATABASE_URL needed)
+# and bypasses CORS_ORIGINS fail-fast (backend/app/factory.py:36).
+# Security steps are advisory (continue-on-error) until the codebase is clean.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Syntax check (compileall)
+        run: |
+          python -m compileall -q backend/app backend/tests
+          echo "compileall OK"
+
+      - name: Run tests (in-memory SQLite, TESTING=1)
+        env:
+          TESTING: "1"
+          SECRET_KEY: test-secret-key-for-testing-only
+          # No DATABASE_URL, SUPABASE_* needed — tests use sqlite+aiosqlite:///:memory:
+        run: |
+          python -m pytest backend/tests -q --tb=short
+
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: ruff check (advisory, no fail)
+        run: |
+          ruff check backend/app backend/tests || echo "::warning::ruff found issues (advisory for now)"
+          ruff format --check backend/app backend/tests || echo "::warning::ruff format check failed (advisory)"
+
+      - name: Syntax check
+        run: python -m compileall -q backend/app backend/tests
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install tools
+        run: pip install pip-audit bandit
+
+      - name: pip-audit (advisory)
+        run: |
+          pip-audit --requirement backend/requirements.txt || echo "::warning::pip-audit found vulnerabilities (advisory)"
+
+      - name: bandit (advisory)
+        run: |
+          bandit -r backend/app -ll || echo "::warning::bandit found issues (advisory)"
