@@ -12,7 +12,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 
-from app.db.database import engine
+from app.db.database import dispose_engine, engine, get_database_url, get_engine
 from app.middleware.logging import logging_middleware
 from app.routes import (
     auth,
@@ -64,7 +64,7 @@ def get_cors_origins() -> list[str]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup/shutdown lifecycle: run Alembic migrations and init Sentry."""
+    """Startup/shutdown lifecycle: validate config, run Alembic migrations, init Sentry."""
     # Initialize Sentry first (optional — no-op if SENTRY_DSN not set or TESTING=1)
     try:
         from app.utils.sentry import init_sentry
@@ -73,26 +73,38 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("Sentry init error ignored", exc_info=True)
 
-    logger.info("Running database migrations...")
-    alembic_cfg = Config(ALEMBIC_INI)
-    try:
-        command.upgrade(alembic_cfg, "head")
-    except Exception as exc:
-        logger.exception("Database migration failed during startup")
-        # Also report to Sentry if enabled
+    # Validate DATABASE_URL and init engine — fail-fast in production,
+    # but allow TESTING=1 runs (pytest, CI) with no env file or DB.
+    if os.getenv("TESTING") == "1":
+        logger.info("TESTING=1 — skipping DATABASE_URL validation and migrations at startup")
+    else:
         try:
-            import sentry_sdk
+            get_database_url()
+            get_engine()
+        except RuntimeError as exc:
+            logger.exception("Database configuration missing at startup")
+            raise
 
-            sentry_sdk.capture_exception(exc)
-        except Exception:
-            pass
-        raise
-    logger.info("Migrations complete.")
+        logger.info("Running database migrations...")
+        alembic_cfg = Config(ALEMBIC_INI)
+        try:
+            command.upgrade(alembic_cfg, "head")
+        except Exception as exc:
+            logger.exception("Database migration failed during startup")
+            # Also report to Sentry if enabled
+            try:
+                import sentry_sdk
+
+                sentry_sdk.capture_exception(exc)
+            except Exception:
+                pass
+            raise
+        logger.info("Migrations complete.")
     yield
     logger.info("Shutting down...")
-    # Dispose engine on shutdown
+    # Dispose engine on shutdown (lazy — no-op if never created, e.g., in tests)
     try:
-        await engine.dispose()
+        await dispose_engine()
     except Exception:
         logger.warning("Engine dispose failed", exc_info=True)
 

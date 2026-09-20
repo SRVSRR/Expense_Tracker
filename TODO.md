@@ -122,6 +122,7 @@ Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 	snapshots remain view-only (no PITR on Free, Pro required). Verified no
 	secrets in workflow/logs and `backend/venv/bin/python -m pytest -q` still
 	119 passing.
+- **2026-09-19**: Fix CI import-time `DATABASE_URL` check — `backend/app/db/database.py` now lazy (no import-time `raise`/`create_async_engine`); `get_database_url()`/`get_engine()` validate at `app/factory.py:66` lifespan (`TESTING=1` skips validation + migrations, otherwise fail-fast). Verified `DATABASE_URL="" TESTING=1 backend/venv/bin/python -m pytest backend/tests -q` → 119 passing (previously `RuntimeError` at `conftest.py:23` via `main:app` → `factory` → `database`).
 - **2026-09-19**: P3 item 7/8 complete — CI via `.github/workflows/ci.yml`
 	(3 jobs: `test` with `TESTING=1` + `compileall`, `lint` with `ruff` advisory,
 	`security` with `pip-audit` + `bandit` advisory; `permissions: contents: read`,
