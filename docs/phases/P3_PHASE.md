@@ -191,7 +191,7 @@ Parts are complete or underway independent of production hardening: Supabase Aut
   - `test`: `pip install -r backend/requirements.txt`, `python -m compileall -q`, `TESTING=1 python -m pytest backend/tests -q` (in-memory SQLite, no `DATABASE_URL`/`SUPABASE_*` needed, 119 tests)
   - `lint`: `pip install ruff`, `ruff check` + `ruff format --check` (advisory, `continue-on-error` via `|| echo ::warning::`), `compileall`
   - `security`: `pip install pip-audit bandit`, `pip-audit` + `bandit -r backend/app -ll` (advisory)
-  - `permissions: contents: read`, no secrets, `actions/setup-python@v5` with `cache: pip`, `timeout-minutes: 10-20`, `workflow_dispatch` for manual runs
+  - `permissions: contents: read`, no secrets, `actions/setup-python@v7` with `cache: pip`, `timeout-minutes: 10-20`, `workflow_dispatch` for manual runs
   - Render still auto-deploys on push to `main` (`docs/INFRASTRUCTURE.md:59`); `cd.yml` staging/prod tags deferred as overkill for Render Free — `ci.yml` is the gate
 
 **Files:**

@@ -128,6 +128,9 @@ Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 	`security` with `pip-audit` + `bandit` advisory; `permissions: contents: read`,
 	no secrets) + `.github/dependabot.yml` weekly. Verified `yaml OK` +
 	`backend/venv/bin/python -m pytest -q` still 119 passing.
+- **2026-09-19**: Dependabot — merged 8 PRs: `aiosqlite 0.22.1`, `alembic 1.20.0`,
+	`scikit-learn 1.9.1`, `httpx 0.28.1`, `python-multipart 0.0.32`, `checkout@v7`,
+	`setup-python@v7`, `upload-artifact@v7`. Verified `backend/venv/bin/pip install` with new versions + `TESTING=1 pytest` still 119 passing, `compileall OK`, actions workflows valid.
 
 ## P0 - Make the current API trustworthy
 
