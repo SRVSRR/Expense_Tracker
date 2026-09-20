@@ -107,6 +107,14 @@ Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 	`request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`);
 	redacts `Authorization` headers and sensitive query params. Added 4 logging
 	tests in `tests/test_factory.py`. Verified 107 tests pass.
+- **2026-09-19**: P3 item 4 + documented debt complete — `sentry-sdk[fastapi]`
+	added, `app/utils/sentry.py` optional init via `SENTRY_DSN` (disabled in
+	`TESTING=1`), lifespan captures migration failures and user context;
+	`app/utils/circuit_breaker.py` protects Supabase JWKS fetch (3 failures →
+	OPEN 60s, 503) and `with_db_transaction`/`db_transaction` now atomically
+	wraps `create_transaction` (balance + recurring rule) with flush-aware
+	cache invalidation. Added `tests/test_sentry.py` (3), `test_circuit_breaker.py`
+	(5), `test_with_db_transaction.py` (3). Verified 119 tests pass.
 
 ## P0 - Make the current API trustworthy
 
@@ -166,6 +174,7 @@ Phased migration documented in [docs/MIGRATION.md](docs/MIGRATION.md). Scope: ba
 - [x] Use a strong production `SECRET_KEY` and environment-specific CORS origins. `SECRET_KEY` is test-only (Supabase signs production tokens). CORS now loads from `CORS_ORIGINS` (comma-separated allowlist) with startup fail-fast and wildcard rejection outside tests.
 - [x] Add production rate limiting. Per-endpoint tiers enforced via `slowapi` (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour), keyed by Bearer `sub` with IP fallback; `429` + `Retry-After` on excess.
 - [x] Add structured JSON logging with correlation IDs. Every request emits a JSON log with `request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`; `X-Request-ID` is propagated; query params and headers are redacted; no secrets leak.
+- [x] Add error monitoring (Sentry, optional via `SENTRY_DSN`, captures user context and migration failures) and documented debt: `with_db_transaction`/`db_transaction` atomic for `create_transaction` (balance + recurring rule) and circuit breaker for Supabase JWKS (3 failures → OPEN 60s, 503 `EXTERNAL_SERVICE_UNAVAILABLE`).
 - [ ] Run migrations as a release step. Startup currently runs `alembic upgrade head`; the basic `/health` endpoint checks database connectivity with `SELECT 1`.
 - [x] Deploy the API and configure the `/health` endpoint for Render. Record the stable HTTPS URL `https://expense-tracker-uwrp.onrender.com` and the mobile client configuration.
 - [ ] Add CI for tests, syntax checks, and dependency/security scanning.

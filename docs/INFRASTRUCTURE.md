@@ -59,7 +59,9 @@ Railway or Render are suitable for the API. Configure a Python service with:
 - Build command: `pip install -r backend/requirements.txt`
 - Start command: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
 - Health path: `/health`
-- Environment variables: `DATABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`, `SECRET_KEY`, `CORS_ORIGINS`, `TESTING`, and `ACCESS_TOKEN_EXPIRE_MINUTES`
+- Environment variables: `DATABASE_URL`, `SUPABASE_JWKS_URL`, `SUPABASE_ISSUER`, `SECRET_KEY`, `CORS_ORIGINS`, `TESTING`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `SENTRY_DSN` (optional), `ENVIRONMENT`
+
+Use the provider's managed HTTPS URL as the client base URL. Set `CORS_ORIGINS` on the provider to the actual mobile/web client origins — do not use `*`; a missing value or a wildcard fails startup outside tests. Set `SENTRY_DSN` to enable error monitoring (disabled when unset or `TESTING=1`); `ENVIRONMENT` defaults to `production`. Native mobile and desktop clients do not use browser CORS, but the `CORS_ORIGINS` variable must still be set so the service starts. Never expose the database URL or JWT secret to mobile or desktop clients.
 
 Use the provider's managed HTTPS URL as the client base URL. Set `CORS_ORIGINS` on the provider to the actual mobile/web client origins — do not use `*`; a missing value or a wildcard fails startup outside tests. Native mobile and desktop clients do not use browser CORS, but the variable must still be set so the service starts. Never expose the database URL or JWT secret to mobile or desktop clients.
 

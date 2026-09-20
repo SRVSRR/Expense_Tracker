@@ -108,14 +108,16 @@ Completed:
 - Route-level failures use the shared `{code, message, details}` exception envelope (`NotFoundError` etc.); `with_retry` protects read-heavy analytics computations against transient DB errors; startup logs and re-raises a clear error if Alembic migrations fail
 - The app factory (`app/factory.py`) owns routers, CORS, request-logging middleware, `/`, `/health`, and the lifespan that runs migrations; `main.py` is a thin entrypoint
 - All routes document standard error responses with examples via the shared `app/utils/openapi.py` module
-- All 95 tests pass. Remaining explicit debt: `with_db_transaction` not yet used in route business logic, and no circuit breaker is implemented.
+- All 107 tests pass. Documented debt from P1 is now complete: `with_db_transaction`/`db_transaction` atomically wraps `create_transaction` (balance + recurring rule) and Supabase JWKS fetch is protected by a circuit breaker.
 
-**P3 (Production hardening): IN PROGRESS — items 1 (SECRET_KEY/CORS), 2 (rate limiting), and 3 (structured logging) COMPLETE**
+**P3 (Production hardening): IN PROGRESS — items 1 (SECRET_KEY/CORS), 2 (rate limiting), 3 (structured logging), and 4 (error monitoring) COMPLETE; documented debt COMPLETE**
 - CORS is `CORS_ORIGINS`-driven with fail-fast: wildcards and unset values raise at startup outside `TESTING=1`
 - Per-endpoint rate-limit tiers (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour) with user-or-IP buckets; `429` + `Retry-After` served and documented
 - Structured JSON logging via `app/utils/logging.py` + `app/middleware/logging.py` with `X-Request-ID` correlation IDs, timing, and redaction; every request emits `request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`
+- Error monitoring via `app/utils/sentry.py` (optional `SENTRY_DSN`, disabled in `TESTING=1`, captures migration failures + user context); JWKS fetch protected by `app/utils/circuit_breaker.py` (3 failures → OPEN 60s, 503)
+- `with_db_transaction`/`db_transaction` atomic for `POST /api/transactions/` (balance + recurring rule) with flush-aware `prediction_cache` invalidation
 - `SECRET_KEY` is documented as test-only convenience; Supabase Auth signs production tokens
-- 107 tests pass. Remaining P3 items: CI, monitoring/backups.
+- 119 tests pass. Remaining P3 items: CI, backups.
 
 **Deployment and mobile handoff**: The FastAPI backend is deployed on Render with
 Supabase Auth as the production provider. Render uses `/health` as the health-check
@@ -305,10 +307,11 @@ future phases.
 | 2026-09-18 | P3 item 1: SECRET_KEY/CORS hardening | Added `get_cors_origins()` to `backend/app/factory.py` — CORS loads from `CORS_ORIGINS` (comma-separated allowlist); wildcard sequences and unset values raise `RuntimeError` at startup unless `TESTING=1`. Added 5 CORS tests in `tests/test_factory.py`; updated `.env.example`, `README.md`, `SECURITY.md`, `docs/INFRASTRUCTURE.md`, `docs/phases/P3_PHASE.md` (item 1 complete), and `TODO.md`. 95 tests pass. |
 | 2026-09-18 | P3 item 2: per-endpoint rate limiting | Central tiers in `app/utils/rate_limit.py` (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour) with user-or-IP buckets (`user_or_ip_key` reads Bearer `sub` for bucketing only, enforced post-auth); applied `@limiter.limit` + `request: Request` + `ERROR_429` to all API routes; fixed stale served `/docs` rate-limit table. Added `tests/test_rate_limit.py` (8 tests). Updated `README.md`, `SECURITY.md`, `docs/phases/P3_PHASE.md` (item 2 complete), `TODO.md`. 103 tests pass. |
 | 2026-09-19 | P3 item 3: structured logging | Added `app/utils/logging.py` (JSONFormatter, redaction, `request_id_var` context) and `app/middleware/logging.py` (`logging_middleware` with `X-Request-ID` correlation IDs, timing, `user_id` from Bearer `sub`, redacted query params, `request completed` JSON logs); wired in `app/factory.py` via `setup_logging()` and `@app.middleware`. Added 4 logging tests in `tests/test_factory.py` (request ID header, redaction, JSON fields). 107 tests pass. |
+| 2026-09-19 | P3 item 4 + documented debt | Added `app/utils/sentry.py` (optional `SENTRY_DSN`, disabled in `TESTING=1`, `capture_user_context`), wired in `app/factory.py` lifespan + `app/middleware/logging.py` + `app/utils/__init__.py:get_current_user`; added `app/utils/circuit_breaker.py` (3 failures → OPEN 60s, 503 `EXTERNAL_SERVICE_UNAVAILABLE`) wrapping `app/utils/supabase_auth.py` JWKS fetch with `_fetch_jwks` + `get_jwks` lock; added `db_transaction`/`with_db_transaction` atomic wrapper and flush-aware `prediction_cache` invalidation, wrapped `POST /api/transactions/` (balance + recurring rule). Added `tests/test_sentry.py` (3), `tests/test_circuit_breaker.py` (5), `tests/test_with_db_transaction.py` (3). 119 tests pass. |
 
 ## What to do next (priority order)
 
-1. **P3: Production hardening** — Items 1 (SECRET_KEY/CORS), 2 (rate limiting), and 3 (structured logging) complete. Remaining: CI, monitoring/backups.
+1. **P3: Production hardening** — Items 1 (SECRET_KEY/CORS), 2 (rate limiting), 3 (structured logging), and 4 (error monitoring) COMPLETE; documented debt COMPLETE. Remaining: CI, backups.
 2. **Mobile integration** — Configure the mobile repository with the final Render API URL (`https://expense-tracker-uwrp.onrender.com`) and Supabase project settings
 3. **Documented technical debt** — Wire `with_db_transaction` into route business logic (startup/transaction rollbacks) and implement a circuit breaker for external service calls
 
@@ -363,6 +366,8 @@ future phases.
         supabase_auth.py          Supabase JWKS verification
         openapi.py                Shared OpenAPI error response blocks
         logging.py                JSON formatter, redaction, request_id context
+        sentry.py                 Sentry (optional via SENTRY_DSN) + user context
+        circuit_breaker.py        Circuit breaker for Supabase JWKS (3→OPEN 60s)
       /middleware
         logging.py                Request logging with correlation IDs and structured JSON
     /migrations                   Alembic migration config + versions

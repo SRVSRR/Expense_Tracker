@@ -5,7 +5,7 @@ Hardening the API for production deployment. Focus on reliability, observability
 
 ## Status: In Progress (partial)
 
-Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, per-endpoint rate limits are enforced with user-or-IP buckets, CORS is env-driven and fails fast in production, and structured JSON logging with correlation IDs is active. Remaining P3 work (CI, monitoring, backups) is unscoped.
+Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, per-endpoint rate limits are enforced with user-or-IP buckets, CORS is env-driven and fails fast in production, structured JSON logging with correlation IDs is active, and error monitoring (Sentry) is optional via `SENTRY_DSN`. Remaining P3 work (CI, backups) is unscoped. Documented debt (atomic `with_db_transaction` + Supabase JWKS circuit breaker) is complete.
 
 ---
 
@@ -92,7 +92,7 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 ---
 
 ### 4. Error Monitoring
-**Status**: Not Started  
+**Status**: Complete — Sentry optional via `SENTRY_DSN` (disabled in `TESTING=1` or when unset), initialized in `app/factory.py` lifespan, captures migrations failures and user context.
 **Priority**: High
 
 **Requirements:**
@@ -102,10 +102,36 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 - Track error patterns
 
 **Implementation:**
-- Add `sentry-sdk` to requirements
-- Initialize in `main.py` lifespan
-- Add `sentry_sdk.init()` with DSN from env
-- Capture user_id in scope
+- Added `sentry-sdk[fastapi]` to `requirements.txt`
+- `app/utils/sentry.py` — `init_sentry()` (reads `SENTRY_DSN`, `ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE`, respects `TESTING=1`), `capture_user_context()`, `is_sentry_enabled()`
+- `app/factory.py` lifespan calls `init_sentry()` before migrations, captures migration failures via `sentry_sdk.capture_exception`
+- `app/middleware/logging.py` and `app/utils/__init__.py:get_current_user` attach Bearer `sub` to Sentry scope (non-auth, best-effort)
+- `.env.example` documents `SENTRY_DSN`, `ENVIRONMENT`, `SENTRY_TRACES_SAMPLE_RATE`
+
+**Acceptance:**
+- Sentry disabled when `SENTRY_DSN` not set or `TESTING=1` — no crash, 3 tests in `tests/test_sentry.py`
+- When enabled, unhandled exceptions and migration failures are reported with `user_id` scope
+
+---
+
+### Debt: Atomic transactions & Circuit breaker (documented debt)
+**Status**: Complete — `with_db_transaction`/`db_transaction` wired for atomic balance + recurring rule; circuit breaker protects Supabase JWKS fetch with 503 on outage.
+**Priority**: High
+
+**Requirements:**
+- Wire `with_db_transaction` into route business logic (balance + recurring rule atomic)
+- Circuit breaker for external service calls (Supabase JWKS)
+
+**Files:**
+- `backend/app/utils/__init__.py` — `db_transaction` context manager + fixed `with_db_transaction` (nested transaction support)
+- `backend/app/services/prediction_cache.py` — `store_prediction`/`invalidate_predictions` now `flush` when `in_transaction()` else `commit`
+- `backend/app/routes/transactions.py` — `create_transaction` wrapped in `async with db_transaction(db)` for atomic balance + recurring rule
+- `backend/app/utils/circuit_breaker.py` — `CircuitBreaker` (CLOSED/OPEN/HALF_OPEN, 3 failures → OPEN 60s), `supabase_jwks_breaker`, `circuit_breaker` decorator
+- `backend/app/utils/supabase_auth.py` — `_fetch_jwks` wrapped with breaker, `_jwks_lock` for thundering-herd, `_clear_jwks_cache()` for tests, raises `ExternalServiceError` (503)
+
+**Acceptance:**
+- Balance + transaction + recurring rule atomically commit or rollback — 3 tests in `tests/test_with_db_transaction.py`
+- JWKS fetch fast-fails with `503 EXTERNAL_SERVICE_UNAVAILABLE` when breaker OPEN, recovers after timeout — 5 tests in `tests/test_circuit_breaker.py`
 
 ---
 
@@ -249,7 +275,7 @@ jobs:
 
 ## Dependencies
 - P0: Complete ✅
-- P1: In Progress
+- P1: Complete ✅
 - P2 (ML Upgrade): Complete ✅
 
 ## Timeline Estimate
@@ -258,7 +284,7 @@ jobs:
 | 1. SECRET_KEY/CORS | 0.5 day ✅ done (2026-09-18) |
 | 2. Rate Limiting | 1 day ✅ done (2026-09-18) |
 | 3. Structured Logging | 1-2 days ✅ done (2026-09-19) |
-| 4. Error Monitoring | 1 day |
+| 4. Error Monitoring | 1 day ✅ done (2026-09-19) |
 | 5. Backups/PITR | 1 day |
 | 6. Health Checks | 0.5 day |
 | 7. CI/CD Pipeline | 2-3 days |

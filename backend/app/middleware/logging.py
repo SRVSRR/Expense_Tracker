@@ -13,6 +13,7 @@ from app.utils.logging import (
     request_id_var,
     request_user_var,
 )
+from app.utils.sentry import capture_user_context
 
 logger = logging.getLogger("expense_tracker.request")
 # Known safe service identifier
@@ -41,6 +42,8 @@ async def logging_middleware(request: Request, call_next: Callable) -> Response:
     if auth.lower().startswith("bearer "):
         token = auth[7:].strip()
         user_id = extract_user_id_from_token(token)
+        # Attach to Sentry scope (non-auth, best-effort)
+        capture_user_context(user_id)
     user_token = request_user_var.set(user_id)
 
     # Also set on request.state for route handlers if needed

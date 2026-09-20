@@ -82,7 +82,10 @@ async def store_prediction(
         valid_until=now + timedelta(hours=ttl_hours),
     )
     db.add(prediction)
-    await db.commit()
+    if db.in_transaction() or db.in_nested_transaction():
+        await db.flush()
+    else:
+        await db.commit()
 
 
 async def invalidate_predictions(
@@ -95,4 +98,7 @@ async def invalidate_predictions(
     if pred_type:
         stmt = stmt.where(Prediction.type == pred_type)
     await db.execute(stmt)
-    await db.commit()
+    if db.in_transaction() or db.in_nested_transaction():
+        await db.flush()
+    else:
+        await db.commit()

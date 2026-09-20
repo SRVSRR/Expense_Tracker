@@ -14,7 +14,7 @@ from app.schemas import (
     RecurringRuleCreate,
     RecurringPattern,
 )
-from app.utils import generate_uuid, get_current_user
+from app.utils import db_transaction, generate_uuid, get_current_user
 from app.utils.exceptions import NotFoundError
 from app.utils.openapi import ERROR_401, ERROR_404, ERROR_422, ERROR_429, ERROR_500
 from app.utils.rate_limit import READ_LIMIT, WRITE_LIMIT, limiter
@@ -79,24 +79,22 @@ async def create_transaction(
         date=tx_data.date,
         is_recurring=tx_data.is_recurring,
     )
-    db.add(transaction)
+    # Atomic: balance update + transaction + recurring rule must succeed together
+    async with db_transaction(db):
+        db.add(transaction)
+        apply_transaction_balance(account, tx_data.type, tx_data.amount)
+        if tx_data.is_recurring and tx_data.recurring_pattern and tx_data.recurring_frequency and tx_data.recurring_expected_date:
+            recurring_rule = RecurringRule(
+                id=generate_uuid(),
+                auth_user_id=current_user.id,
+                transaction_id=transaction.id,
+                pattern=tx_data.recurring_pattern,
+                frequency=tx_data.recurring_frequency,
+                expected_amount=tx_data.amount,
+                expected_date=tx_data.recurring_expected_date,
+            )
+            db.add(recurring_rule)
 
-    apply_transaction_balance(account, tx_data.type, tx_data.amount)
-
-    # Auto-create recurring rule if transaction is marked as recurring with required fields
-    if tx_data.is_recurring and tx_data.recurring_pattern and tx_data.recurring_frequency and tx_data.recurring_expected_date:
-        recurring_rule = RecurringRule(
-            id=generate_uuid(),
-            auth_user_id=current_user.id,
-            transaction_id=transaction.id,
-            pattern=tx_data.recurring_pattern,
-            frequency=tx_data.recurring_frequency,
-            expected_amount=tx_data.amount,
-            expected_date=tx_data.recurring_expected_date,
-        )
-        db.add(recurring_rule)
-
-    await db.commit()
     await db.refresh(transaction)
     await invalidate_predictions(db, current_user.id)
     return transaction

@@ -16,6 +16,7 @@ import uuid
 
 from app.db.database import get_db
 from app.models import User
+from app.utils.sentry import capture_user_context
 from app.utils.supabase_auth import verify_supabase_token
 
 security = HTTPBearer()
@@ -78,17 +79,42 @@ def with_retry(
     return decorator
 
 
+from contextlib import asynccontextmanager
+
+
+@asynccontextmanager
+async def db_transaction(db: AsyncSession):
+    """Async context manager for atomic DB operations.
+
+    Uses a nested transaction (savepoint) if a transaction is already active
+    (e.g., when called inside a route that already has an implicit transaction),
+    otherwise starts a new transaction. Automatic rollback on exception, commit
+    on success. Use this for balance + recurring rule atomicity.
+    """
+    if db.in_transaction() or db.in_nested_transaction():
+        async with db.begin_nested():
+            yield db
+    else:
+        async with db.begin():
+            yield db
+
+
 async def with_db_transaction(db: AsyncSession, func: Callable[..., T]) -> T:
     """
     Execute a function within a database transaction with automatic rollback on error.
+    Supports both outer and nested transaction contexts.
     """
-    async with db.begin():
-        try:
-            result = await func()
-            return result
-        except Exception:
-            # The transaction will be rolled back automatically when exiting the context
-            raise
+    if db.in_transaction() or db.in_nested_transaction():
+        async with db.begin_nested():
+            return await func()
+    else:
+        async with db.begin():
+            try:
+                result = await func()
+                return result
+            except Exception:
+                # The transaction will be rolled back automatically when exiting the context
+                raise
 
 
 async def get_current_user(
@@ -125,4 +151,6 @@ async def get_current_user(
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception
+    # Attach to Sentry for error grouping
+    capture_user_context(user_id)
     return user

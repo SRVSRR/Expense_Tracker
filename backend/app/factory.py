@@ -64,17 +64,37 @@ def get_cors_origins() -> list[str]:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup/shutdown lifecycle: run Alembic migrations and fail loudly on error."""
+    """Startup/shutdown lifecycle: run Alembic migrations and init Sentry."""
+    # Initialize Sentry first (optional — no-op if SENTRY_DSN not set or TESTING=1)
+    try:
+        from app.utils.sentry import init_sentry
+
+        init_sentry()
+    except Exception:
+        logger.warning("Sentry init error ignored", exc_info=True)
+
     logger.info("Running database migrations...")
     alembic_cfg = Config(ALEMBIC_INI)
     try:
         command.upgrade(alembic_cfg, "head")
     except Exception as exc:
         logger.exception("Database migration failed during startup")
+        # Also report to Sentry if enabled
+        try:
+            import sentry_sdk
+
+            sentry_sdk.capture_exception(exc)
+        except Exception:
+            pass
         raise
     logger.info("Migrations complete.")
     yield
     logger.info("Shutting down...")
+    # Dispose engine on shutdown
+    try:
+        await engine.dispose()
+    except Exception:
+        logger.warning("Engine dispose failed", exc_info=True)
 
 
 def create_app() -> FastAPI:

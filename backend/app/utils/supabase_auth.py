@@ -1,4 +1,5 @@
 """Supabase JWT verification using JWKS."""
+import asyncio
 import os
 import httpx
 from typing import Optional, Dict, Any
@@ -11,24 +12,57 @@ from sqlalchemy import select
 
 from app.db.database import get_db
 from app.models import User
+from app.utils.circuit_breaker import circuit_breaker, supabase_jwks_breaker
+from app.utils.exceptions import ExternalServiceError
 
 security = HTTPBearer()
 
 _jwks_cache: Optional[Dict[str, Any]] = None
+_jwks_lock = asyncio.Lock()
+
+
+@circuit_breaker(supabase_jwks_breaker)
+async def _fetch_jwks(url: str) -> Dict[str, Any]:
+    """Fetch JWKS from Supabase with circuit-breaker protection.
+    
+    Called only on cache miss. Failures count toward breaker threshold and
+    are wrapped as ExternalServiceError (503) for the global handler.
+    """
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(url, timeout=10.0)
+        resp.raise_for_status()
+        return resp.json()
 
 
 async def get_jwks() -> Dict[str, Any]:
-    """Fetch and cache Supabase JWKS."""
+    """Fetch and cache Supabase JWKS with breaker and thundering-herd protection."""
     global _jwks_cache
-    if _jwks_cache is None:
+    if _jwks_cache is not None:
+        return _jwks_cache
+
+    async with _jwks_lock:
+        # Double-check after acquiring lock
+        if _jwks_cache is not None:
+            return _jwks_cache
+
         supabase_jwks_url = os.getenv("SUPABASE_JWKS_URL")
         if not supabase_jwks_url:
             raise RuntimeError("SUPABASE_JWKS_URL not configured")
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(supabase_jwks_url, timeout=10.0)
-            resp.raise_for_status()
-            _jwks_cache = resp.json()
+        try:
+            _jwks_cache = await _fetch_jwks(supabase_jwks_url)
+        except ExternalServiceError:
+            raise
+        except httpx.HTTPError as exc:
+            # Fallback wrap if breaker didn't catch (should be 503)
+            raise ExternalServiceError(service="supabase", message=str(exc)) from exc
     return _jwks_cache
+
+
+def _clear_jwks_cache() -> None:
+    """Clear JWKS cache and reset breaker (for tests)."""
+    global _jwks_cache
+    _jwks_cache = None
+    supabase_jwks_breaker.reset()
 
 
 def get_signing_key(token: str, jwks: Dict[str, Any]) -> str:
