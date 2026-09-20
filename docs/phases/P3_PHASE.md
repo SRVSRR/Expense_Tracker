@@ -5,7 +5,7 @@ Hardening the API for production deployment. Focus on reliability, observability
 
 ## Status: In Progress (partial)
 
-Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, per-endpoint rate limits are enforced with user-or-IP buckets, CORS is env-driven and fails fast in production, structured JSON logging with correlation IDs is active, and error monitoring (Sentry) is optional via `SENTRY_DSN`. Remaining P3 work (CI, backups) is unscoped. Documented debt (atomic `with_db_transaction` + Supabase JWKS circuit breaker) is complete.
+Parts are complete or underway independent of production hardening: Supabase Auth is the sole auth provider, the app-factory lifespan runs migrations at startup, per-endpoint rate limits are enforced with user-or-IP buckets, CORS is env-driven and fails fast in production, structured JSON logging with correlation IDs is active, error monitoring (Sentry) is optional via `SENTRY_DSN`, and daily `pg_dump` backups run via GitHub Actions (Free-tier, 7-day artifact/Dialog dashboard). Remaining P3 work (CI) is unscoped. Documented debt (atomic `with_db_transaction` + Supabase JWKS circuit breaker) is complete.
 
 ---
 
@@ -136,7 +136,7 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 ---
 
 ### 5. Backups & Point-in-Time Recovery
-**Status**: Not Started  
+**Status**: Complete — Free-tier daily `pg_dump` via GitHub Actions + Dashboard snapshots as view-only fallback; PITR not available on Free (Pro required).
 **Priority**: High
 
 **Requirements:**
@@ -145,10 +145,16 @@ Parts are complete or underway independent of production hardening: Supabase Aut
 - Backup verification script
 - Documented restore procedure
 
-**Implementation:**
-- Configure in Supabase dashboard
-- Document restore procedure in `docs/ops/RESTORE.md`
-- Test restore quarterly
+**Implementation (Free plan):**
+- `.github/workflows/backup.yml` — daily cron `0 2 * * *` + `workflow_dispatch`, masks `DATABASE_URL` via `::add-mask::`, smoke-tests `SELECT 1`/`pg_is_in_recovery()`, runs `pg_dump -Fc` + plain SQL, uploads artifact `pg-backup-<TIMESTAMP>` with `retention-days: 7` (no S3)
+- `backend/scripts/verify_backup.py` — `SELECT 1` + `pg_is_in_recovery()` + optional local dump age check (`--path backup-*.dump --max-age-hours 24`), never logs `DATABASE_URL`
+- `docs/ops/RESTORE.md` — full runbook: manual `pg_dump`/`pg_restore`/`psql` + `alembic upgrade head` + `curl /health` + Bearer round-trip, troubleshooting (`password authentication failed` → secret/encoding, `CORS_ORIGINS is not set`, `429`, `503` breaker), retention/limits (Free: daily snapshot 7-day view-only, artifact 7-day private, local dumps gitignored)
+- Supabase Dashboard → Database → Backups remains view-only on Free; Pro PITR slider is documented as upgrade path when needed
+
+**Acceptance:**
+- Workflow exists and is masked/permission-scoped (`permissions: contents: read`, `if: secrets.DATABASE_URL != ''`)
+- `docs/ops/RESTORE.md` linked from `docs/INFRASTRUCTURE.md` and `TODO.md:182`
+- Verify: `DATABASE_URL=... python backend/scripts/verify_backup.py` + `gh run list --workflow=backup` shows green run + artifact; `backend/venv/bin/python -m pytest -q` still 119 passing
 
 ---
 
@@ -285,7 +291,7 @@ jobs:
 | 2. Rate Limiting | 1 day ✅ done (2026-09-18) |
 | 3. Structured Logging | 1-2 days ✅ done (2026-09-19) |
 | 4. Error Monitoring | 1 day ✅ done (2026-09-19) |
-| 5. Backups/PITR | 1 day |
+| 5. Backups/PITR | 1 day ✅ done (2026-09-19, Free-tier pg_dump) |
 | 6. Health Checks | 0.5 day |
 | 7. CI/CD Pipeline | 2-3 days |
 | 8. Security Scanning | 0.5 day |

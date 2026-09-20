@@ -31,3 +31,9 @@ logs/
 # Environment
 .env
 .env.*.local
+
+# Backups (never commit dumps)
+backup-*.dump
+backup-*.sql
+backend/backups/
+backups/

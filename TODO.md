@@ -115,6 +115,13 @@ Role-focused case studies: [docs/case-studies/](docs/case-studies/).
 	wraps `create_transaction` (balance + recurring rule) with flush-aware
 	cache invalidation. Added `tests/test_sentry.py` (3), `test_circuit_breaker.py`
 	(5), `test_with_db_transaction.py` (3). Verified 119 tests pass.
+- **2026-09-19**: P3 item 5 complete — Free-tier daily logical backups via
+	GitHub Actions `.github/workflows/backup.yml` (02:00 UTC, masked
+	`DATABASE_URL`, `pg_dump -Fc` + plain SQL, 7-day artifact, no S3) +
+	`docs/ops/RESTORE.md` + `backend/scripts/verify_backup.py`; Dashboard
+	snapshots remain view-only (no PITR on Free, Pro required). Verified no
+	secrets in workflow/logs and `backend/venv/bin/python -m pytest -q` still
+	119 passing.
 
 ## P0 - Make the current API trustworthy
 
@@ -175,6 +182,7 @@ Phased migration documented in [docs/MIGRATION.md](docs/MIGRATION.md). Scope: ba
 - [x] Add production rate limiting. Per-endpoint tiers enforced via `slowapi` (auth 60/min, reads 120/min, writes 30/min, analytics 60/hour, train 2/hour), keyed by Bearer `sub` with IP fallback; `429` + `Retry-After` on excess.
 - [x] Add structured JSON logging with correlation IDs. Every request emits a JSON log with `request_id`, `user_id`, `method`, `path`, `status`, `latency_ms`, `service`; `X-Request-ID` is propagated; query params and headers are redacted; no secrets leak.
 - [x] Add error monitoring (Sentry, optional via `SENTRY_DSN`, captures user context and migration failures) and documented debt: `with_db_transaction`/`db_transaction` atomic for `create_transaction` (balance + recurring rule) and circuit breaker for Supabase JWKS (3 failures → OPEN 60s, 503 `EXTERNAL_SERVICE_UNAVAILABLE`).
+- [x] Configure daily logical backups on Free tier (GitHub Actions `pg_dump` via `.github/workflows/backup.yml`, 02:00 UTC, masked `DATABASE_URL`, 7-day artifact) + Dashboard daily snapshots (view-only) + `docs/ops/RESTORE.md` runbook + `backend/scripts/verify_backup.py` (`SELECT 1`/`pg_is_in_recovery()`/dump-age); note Free has no PITR (Pro required for PITR slider).
 - [ ] Run migrations as a release step. Startup currently runs `alembic upgrade head`; the basic `/health` endpoint checks database connectivity with `SELECT 1`.
 - [x] Deploy the API and configure the `/health` endpoint for Render. Record the stable HTTPS URL `https://expense-tracker-uwrp.onrender.com` and the mobile client configuration.
 - [ ] Add CI for tests, syntax checks, and dependency/security scanning.

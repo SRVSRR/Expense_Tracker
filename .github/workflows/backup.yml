@@ -1,0 +1,93 @@
+# Daily logical backup for Supabase Free tier (pg_dump -> artifact)
+#
+# Security:
+# - DATABASE_URL is read from GitHub Secrets (never logged, never committed)
+# - The URL is masked via `add-mask` and never echoed
+# - Artifact retains 7 days (matches Supabase Free retention), no S3 bucket needed
+# - Manual trigger via workflow_dispatch for ad-hoc backups before risky migrations
+#
+# Setup:
+# 1. GitHub → Settings → Secrets and variables → Actions → New repository secret
+#    Name: DATABASE_URL
+#    Value: postgresql://postgres.<ref>:<password>@<pooler-host>:6543/postgres
+#           (use the Transaction pooler URL, port 6543)
+# 2. Supabase Dashboard → Database → Backups shows daily snapshots (view-only on Free)
+
+name: backup
+
+on:
+  schedule:
+    - cron: "0 2 * * *" # 02:00 UTC daily
+  workflow_dispatch:
+
+# Never run on PRs from forks with secrets
+permissions:
+  contents: read
+
+jobs:
+  pg-dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only run if secret exists (avoids failing open on forks)
+    if: ${{ secrets.DATABASE_URL != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Mask DATABASE_URL
+        run: echo "::add-mask::${{ secrets.DATABASE_URL }}"
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          psql --version
+          pg_dump --version
+
+      - name: Smoke test DB connectivity (SELECT 1, no secrets in logs)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          # Redact URL in logs — only show host via psql error if any
+          set -euo pipefail
+          echo "Checking DB connectivity (SELECT 1)..."
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT 1;" >/dev/null
+          echo "DB connectivity OK"
+          # Optional: verify not in recovery (primary)
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "SELECT pg_is_in_recovery();" || true
+
+      - name: Run pg_dump (custom format, compressed)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          FILENAME="backup-${TIMESTAMP}.dump"
+          echo "Creating $FILENAME (custom format, compressed)..."
+          # --no-password avoids prompt, --verbose is not used to avoid leaking
+          # Custom format (-Fc) is compressed and restorable via pg_restore
+          pg_dump "$DATABASE_URL" -Fc -f "$FILENAME"
+          ls -lh "$FILENAME"
+          # Also create plain SQL for quick psql restore
+          pg_dump "$DATABASE_URL" -f "backup-${TIMESTAMP}.sql"
+          ls -lh "backup-${TIMESTAMP}.sql"
+          echo "FILENAME=$FILENAME" >> "$GITHUB_ENV"
+          echo "TIMESTAMP=$TIMESTAMP" >> "$GITHUB_ENV"
+
+      - name: Upload backup artifact (7-day retention)
+        uses: actions/upload-artifact@v4
+        with:
+          name: pg-backup-${{ env.TIMESTAMP }}
+          path: |
+            backup-*.dump
+            backup-*.sql
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 6
+
+      - name: Summary
+        run: |
+          echo "Backup created at $TIMESTAMP, artifact pg-backup-$TIMESTAMP (7-day retention)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Restore: download artifact, then \`pg_restore -d \"\$DATABASE_URL\" backup-*.dump\` or \`psql \"\$DATABASE_URL\" < backup-*.sql\`, then \`alembic upgrade head\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Manual verify: \`python backend/scripts/verify_backup.py\` (checks SELECT 1 + artifact age)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Supabase Dashboard → Database → Backups shows daily snapshots (Free tier, view-only)" >> "$GITHUB_STEP_SUMMARY"

@@ -63,7 +63,9 @@ Railway or Render are suitable for the API. Configure a Python service with:
 
 Use the provider's managed HTTPS URL as the client base URL. Set `CORS_ORIGINS` on the provider to the actual mobile/web client origins — do not use `*`; a missing value or a wildcard fails startup outside tests. Set `SENTRY_DSN` to enable error monitoring (disabled when unset or `TESTING=1`); `ENVIRONMENT` defaults to `production`. Native mobile and desktop clients do not use browser CORS, but the `CORS_ORIGINS` variable must still be set so the service starts. Never expose the database URL or JWT secret to mobile or desktop clients.
 
-Use the provider's managed HTTPS URL as the client base URL. Set `CORS_ORIGINS` on the provider to the actual mobile/web client origins — do not use `*`; a missing value or a wildcard fails startup outside tests. Native mobile and desktop clients do not use browser CORS, but the variable must still be set so the service starts. Never expose the database URL or JWT secret to mobile or desktop clients.
+## Backups (Free tier)
+
+Supabase Free gives daily physical snapshots (7-day retention, view-only, no PITR). Owner-controlled logical restores use daily `pg_dump` via `.github/workflows/backup.yml` (cron 02:00 UTC, `::add-mask::` for `DATABASE_URL`, artifact 7-day retention, no S3). See `docs/ops/RESTORE.md` for manual `pg_dump`/`pg_restore` + `alembic upgrade head` + `curl /health` steps and `backend/scripts/verify_backup.py` for `SELECT 1`/`pg_is_in_recovery()` + dump-age checks.
 
 ## Client connection
 
