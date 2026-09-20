@@ -32,7 +32,7 @@ jobs:
     if: ${{ secrets.DATABASE_URL != '' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Mask DATABASE_URL
         run: echo "::add-mask::${{ secrets.DATABASE_URL }}"
@@ -75,7 +75,7 @@ jobs:
           echo "TIMESTAMP=$TIMESTAMP" >> "$GITHUB_ENV"
 
       - name: Upload backup artifact (7-day retention)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pg-backup-${{ env.TIMESTAMP }}
           path: |
