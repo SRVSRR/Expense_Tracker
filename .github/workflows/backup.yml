@@ -32,7 +32,7 @@ jobs:
     if: ${{ secrets.DATABASE_URL != '' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Mask DATABASE_URL
         run: echo "::add-mask::${{ secrets.DATABASE_URL }}"
